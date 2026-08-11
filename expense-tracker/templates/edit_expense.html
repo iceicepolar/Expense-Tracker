@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Transaction{% endblock %}
+
+{% block content %}
+
+<div class="top-header">
+  <div>
+    <span class="month">EDITING</span>
+    <h1>{{ expense.description }}</h1>
+  </div>
+
+  <form method="post"
+        action="{{ url_for('delete_expense', expense_id=expense.id) }}"
+        data-confirm="Delete &quot;{{ expense.description }}&quot;?">
+    <button type="submit" class="danger-btn">
+      <i class="fa-solid fa-trash"></i>
+      <span>Delete</span>
+    </button>
+  </form>
+</div>
+
+{% with action = url_for('edit_expense', expense_id=expense.id), submit_label = 'Save Changes' %}
+  {% include "_form.html" %}
+{% endwith %}
+
+{% endblock %}

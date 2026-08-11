@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Add Transaction{% endblock %}
+
+{% block content %}
+
+<div class="top-header">
+  <div>
+    <span class="month">NEW ENTRY</span>
+    <h1>Add Transaction</h1>
+  </div>
+</div>
+
+{% with action = url_for('add_expense'), submit_label = 'Save Transaction' %}
+  {% include "_form.html" %}
+{% endwith %}
+
+{% endblock %}

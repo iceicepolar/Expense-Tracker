@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Overview{% endblock %}
+
+{% block content %}
+
+<div class="top-header">
+
+  <div>
+    <span class="month">{{ period_label|upper }}</span>
+    <h1>Financial Overview</h1>
+  </div>
+
+  <div class="top-header__actions">
+
+    <form method="get" class="month-picker">
+      {% if filters.q %}<input type="hidden" name="q" value="{{ filters.q }}">{% endif %}
+      {% if filters.category %}<input type="hidden" name="category" value="{{ filters.category }}">{% endif %}
+      {% if filters.type %}<input type="hidden" name="type" value="{{ filters.type }}">{% endif %}
+      <label class="sr-only" for="month">Period</label>
+      <select name="month" id="month" onchange="this.form.submit()">
+        <option value="all" {{ 'selected' if selected_month == 'all' }}>All time</option>
+        {% for key, label in months %}
+          <option value="{{ key }}" {{ 'selected' if key == selected_month }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+
+    <a class="primary-btn" href="{{ url_for('add_expense') }}">
+      <i class="fa-solid fa-plus"></i>
+      <span>Add Transaction</span>
+    </a>
+
+  </div>
+
+</div>
+
+<!-- Cards -->
+
+<div class="cards">
+
+  <div class="card">
+    <div class="icon gold">
+      <i class="fa-solid fa-wallet"></i>
+    </div>
+    <h4>Net Balance</h4>
+    <h2 class="{{ 'is-negative' if balance < 0 }}">
+      {{ '-' if balance < 0 }}{{ balance|money }}
+    </h2>
+  </div>
+
+  <div class="card">
+    <div class="icon red">
+      <i class="fa-solid fa-arrow-up"></i>
+    </div>
+    <h4>Spent</h4>
+    <h2>{{ total_expenses|money }}</h2>
+  </div>
+
+  <div class="card">
+    <div class="icon green">
+      <i class="fa-solid fa-arrow-down"></i>
+    </div>
+    <h4>Income</h4>
+    <h2>{{ total_income|money }}</h2>
+  </div>
+
+</div>
+
+<!-- Charts -->
+
+<div class="chart-grid">
+
+  <div class="chart-card">
+    <h3>Income vs Spending</h3>
+    <div class="chart-container">
+      <canvas id="lineChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h3>Categories</h3>
+    {% if chart_data.categories.values %}
+      <div class="pie-container">
+        <canvas id="pieChart"></canvas>
+      </div>
+    {% else %}
+      <p class="muted">No spending recorded for this period yet.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Transactions -->
+
+<div class="table-card">
+
+  <div class="table-header">
+
+    <h2>Transactions <span class="count">{{ expenses|length }}</span></h2>
+
+    <form method="get" class="filters">
+
+      <input type="hidden" name="month" value="{{ selected_month }}">
+
+      <div class="search-field">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <label class="sr-only" for="q">Search</label>
+        <input type="search" id="q" name="q" value="{{ filters.q }}"
+               placeholder="Search description">
+      </div>
+
+      <label class="sr-only" for="category">Category</label>
+      <select name="category" id="category">
+        <option value="">All categories</option>
+        {% for name in categories %}
+          <option value="{{ name }}" {{ 'selected' if name == filters.category }}>{{ name }}</option>
+        {% endfor %}
+      </select>
+
+      <label class="sr-only" for="type">Type</label>
+      <select name="type" id="type">
+        <option value="">All types</option>
+        {% for name in transaction_types %}
+          <option value="{{ name }}" {{ 'selected' if name == filters.type }}>{{ name }}</option>
+        {% endfor %}
+      </select>
+
+      <button type="submit" class="ghost-btn">Apply</button>
+
+      {% if filters.q or filters.category or filters.type %}
+        <a class="ghost-btn" href="{{ url_for('dashboard', month=selected_month) }}">Clear</a>
+      {% endif %}
+
+    </form>
+
+  </div>
+
+  {% if expenses %}
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Date</th>
+            <th class="align-right">Amount</th>
+            <th class="align-right">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for expense in expenses %}
+            <tr>
+              <td data-label="Description">{{ expense.description }}</td>
+
+              <td data-label="Category">
+                <span class="category">{{ expense.category }}</span>
+              </td>
+
+              <td data-label="Date">{{ expense.transaction_date.strftime('%d %b %Y') }}</td>
+
+              <td data-label="Amount"
+                  class="align-right amount {{ 'amount--in' if expense.is_income else 'amount--out' }}">
+                {{ '+' if expense.is_income else '-' }}{{ expense.amount|money }}
+              </td>
+
+              <td data-label="Actions" class="align-right actions">
+                <a class="icon-btn" href="{{ url_for('edit_expense', expense_id=expense.id) }}"
+                   aria-label="Edit {{ expense.description }}">
+                  <i class="fa-solid fa-pen"></i>
+                </a>
+
+                <form method="post"
+                      action="{{ url_for('delete_expense', expense_id=expense.id) }}"
+                      data-confirm="Delete &quot;{{ expense.description }}&quot;?">
+                  <button class="icon-btn icon-btn--danger" type="submit"
+                          aria-label="Delete {{ expense.description }}">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  {% else %}
+
+    <div class="empty-state">
+      <i class="fa-solid fa-receipt"></i>
+      <h3>Nothing here yet</h3>
+      <p>
+        {% if filters.q or filters.category or filters.type %}
+          No transactions match those filters.
+        {% else %}
+          Add your first transaction to see it show up in the charts.
+        {% endif %}
+      </p>
+      <a class="primary-btn" href="{{ url_for('add_expense') }}">
+        <i class="fa-solid fa-plus"></i>
+        <span>Add Transaction</span>
+      </a>
+    </div>
+
+  {% endif %}
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script id="chartData" type="application/json">{{ chart_data|tojson }}</script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{#
+  Shared transaction form.
+  Expects: action (url), submit_label, data (dict of raw values), errors (dict)
+#}
+<form method="post" action="{{ action }}" class="form-card" novalidate>
+
+  <div class="form-row">
+    <label for="description">Description</label>
+    <input type="text" id="description" name="description" maxlength="150"
+           value="{{ data.description or '' }}"
+           placeholder="e.g. Groceries at the market"
+           {% if errors.description %}aria-invalid="true"{% endif %}
+           required>
+    {% if errors.description %}<small class="error">{{ errors.description }}</small>{% endif %}
+  </div>
+
+  <div class="form-grid">
+
+    <div class="form-row">
+      <label for="amount">Amount</label>
+      <input type="number" id="amount" name="amount" step="0.01" min="0.01"
+             inputmode="decimal"
+             value="{{ data.amount or '' }}"
+             placeholder="0.00"
+             {% if errors.amount %}aria-invalid="true"{% endif %}
+             required>
+      {% if errors.amount %}<small class="error">{{ errors.amount }}</small>{% endif %}
+    </div>
+
+    <div class="form-row">
+      <label for="transaction_date">Date</label>
+      <input type="date" id="transaction_date" name="transaction_date"
+             value="{{ data.transaction_date or today }}"
+             {% if errors.transaction_date %}aria-invalid="true"{% endif %}
+             required>
+      {% if errors.transaction_date %}<small class="error">{{ errors.transaction_date }}</small>{% endif %}
+    </div>
+
+    <div class="form-row">
+      <label for="category">Category</label>
+      <select id="category" name="category"
+              {% if errors.category %}aria-invalid="true"{% endif %} required>
+        <option value="" disabled {{ 'selected' if not data.category }}>Choose one</option>
+        {% for name in categories %}
+          <option value="{{ name }}" {{ 'selected' if name == data.category }}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      {% if errors.category %}<small class="error">{{ errors.category }}</small>{% endif %}
+    </div>
+
+    <div class="form-row">
+      <label>Type</label>
+      <div class="segmented">
+        {% for name in transaction_types %}
+          <input type="radio" id="type-{{ name }}" name="transaction_type" value="{{ name }}"
+                 {{ 'checked' if name == (data.transaction_type or 'Expense') }}>
+          <label for="type-{{ name }}">{{ name }}</label>
+        {% endfor %}
+      </div>
+      {% if errors.transaction_type %}<small class="error">{{ errors.transaction_type }}</small>{% endif %}
+    </div>
+
+  </div>
+
+  <div class="form-actions">
+    <a class="ghost-btn" href="{{ url_for('dashboard') }}">Cancel</a>
+    <button type="submit" class="primary-btn">{{ submit_label }}</button>
+  </div>
+
+</form>

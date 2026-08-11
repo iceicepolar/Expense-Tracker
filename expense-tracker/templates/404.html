@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Not Found{% endblock %}
+
+{% block content %}
+
+<div class="empty-state">
+  <i class="fa-solid fa-compass"></i>
+  <h3>Page not found</h3>
+  <p>That page doesn't exist — it may have been moved or never built yet.</p>
+  <a class="primary-btn" href="{{ url_for('dashboard') }}">
+    <i class="fa-solid fa-chart-pie"></i>
+    <span>Back to Overview</span>
+  </a>
+</div>
+
+{% endblock %}

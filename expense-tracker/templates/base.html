@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <meta name="theme-color" content="#09090f">
+
+    <title>{% block title %}Ledger{% endblock %} · Expense Tracker</title>
+
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+    <!-- Main CSS -->
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}">
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/mobile.css') }}">
+
+</head>
+
+<body>
+
+<!-- Mobile top bar -->
+<header class="mobile-bar">
+
+    <button
+        class="icon-btn"
+        type="button"
+        id="menuToggle"
+        aria-label="Open menu"
+        aria-controls="sidebar"
+        aria-expanded="false">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+
+    <span class="mobile-bar__title">Ledger</span>
+
+    <a class="icon-btn" href="{{ url_for('add_expense') }}" aria-label="Add transaction">
+        <i class="fa-solid fa-plus"></i>
+    </a>
+
+</header>
+
+<div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+
+<div class="container">
+
+    <!-- Sidebar -->
+
+    <aside class="sidebar" id="sidebar">
+
+        <div class="logo">
+
+            <i class="fa-solid fa-wallet"></i>
+
+            <div>
+                <h2>Ledger</h2>
+                <p>Personal Finance</p>
+            </div>
+
+        </div>
+
+        <a class="add-btn" href="{{ url_for('add_expense') }}">
+            <i class="fa-solid fa-plus"></i>
+            <span>Add Transaction</span>
+        </a>
+
+        <nav>
+
+            {% set all_time = request.args.get('month') == 'all' %}
+
+            <a href="{{ url_for('dashboard') }}"
+               class="{{ 'active' if request.endpoint == 'dashboard' and not all_time }}">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Overview</span>
+            </a>
+
+            <a href="{{ url_for('dashboard', month='all') }}"
+               class="{{ 'active' if request.endpoint == 'dashboard' and all_time }}">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Transactions</span>
+            </a>
+
+            <span class="nav-soon">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Analytics</span>
+                <em>soon</em>
+            </span>
+
+            <span class="nav-soon">
+                <i class="fa-solid fa-file-lines"></i>
+                <span>Reports</span>
+                <em>soon</em>
+            </span>
+
+            <span class="nav-soon">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+                <em>soon</em>
+            </span>
+
+        </nav>
+
+    </aside>
+
+    <!-- Main Content -->
+
+    <main class="content">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flashes">
+                    {% for category, message in messages %}
+                        <div class="flash flash--{{ category }}">
+                            <i class="fa-solid {{ 'fa-circle-check' if category == 'success' else 'fa-circle-exclamation' }}"></i>
+                            <span>{{ message }}</span>
+                            <button type="button" class="flash__close" aria-label="Dismiss">&times;</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}
+
+        {% endblock %}
+
+    </main>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+
+</body>
+
+</html>

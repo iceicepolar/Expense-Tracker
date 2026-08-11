@@ -1,0 +1,331 @@
+/* ===========================================================
+   Ledger — responsive layer (loaded after style.css)
+
+   1100px  tablet   → sidebar collapses to an icon rail
+    900px  mobile   → off-canvas drawer + fixed top bar
+    640px  phone    → table turns into stacked cards
+    420px  small    → tighter spacing
+   =========================================================== */
+
+/* ===========================
+   Tablet — icon rail sidebar
+=========================== */
+
+@media (max-width: 1100px) {
+  :root {
+    --sidebar-w: 84px;
+  }
+
+  .sidebar {
+    padding: 26px 14px;
+  }
+
+  .logo {
+    justify-content: center;
+    margin-bottom: 26px;
+  }
+
+  .logo div,
+  .add-btn span,
+  nav a span,
+  .nav-soon span,
+  .nav-soon em {
+    display: none;
+  }
+
+  .add-btn,
+  nav a,
+  .nav-soon {
+    justify-content: center;
+    padding: 14px 0;
+  }
+
+  .content {
+    padding: 35px 30px;
+  }
+
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pie-container {
+    height: 280px;
+  }
+}
+
+/* ===========================
+   Mobile — off-canvas drawer
+=========================== */
+
+@media (max-width: 900px) {
+  :root {
+    --sidebar-w: 270px;
+  }
+
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--bar-h);
+    padding: 0 14px;
+    background: #111119;
+    border-bottom: 1px solid var(--line);
+    z-index: 60;
+  }
+
+  .mobile-bar__title {
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 18px;
+    margin-right: auto;
+  }
+
+  .container {
+    flex-direction: column;
+    padding-top: var(--bar-h);
+  }
+
+  /* Drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-w);
+    flex: none;
+    height: 100vh;
+    height: 100dvh;
+    padding: 24px 18px;
+    z-index: 70;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, .5);
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  /* Restore the full labels inside the drawer */
+  .logo {
+    justify-content: flex-start;
+  }
+
+  .logo div,
+  .add-btn span,
+  nav a span,
+  .nav-soon span,
+  .nav-soon em {
+    display: block;
+  }
+
+  .nav-soon em {
+    margin-left: auto;
+  }
+
+  .add-btn,
+  nav a,
+  .nav-soon {
+    justify-content: flex-start;
+    padding: 13px 14px;
+  }
+
+  .add-btn {
+    justify-content: center;
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .6);
+    z-index: 65;
+  }
+
+  .sidebar-overlay[hidden] {
+    display: none;
+  }
+
+  .content {
+    padding: 24px 18px 40px;
+  }
+
+  .top-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .top-header__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .month-picker select,
+  .primary-btn,
+  .danger-btn {
+    width: 100%;
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  .chart-container {
+    height: 260px;
+  }
+
+  .pie-container {
+    height: 260px;
+  }
+
+  .table-card,
+  .chart-card {
+    padding: 18px;
+  }
+
+  .filters {
+    width: 100%;
+  }
+
+  .filters select,
+  .search-field {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .filters .ghost-btn {
+    flex: 1;
+  }
+
+  .form-card {
+    padding: 20px;
+  }
+
+  .form-actions .ghost-btn,
+  .form-actions .primary-btn {
+    flex: 1;
+  }
+}
+
+/* ===========================
+   Phone — table becomes cards
+
+   Kicks in at 768px: below that the 640px-wide table would need its own
+   sideways scroll, which is worse than stacking each row into a card.
+=========================== */
+
+@media (max-width: 768px) {
+  .table-scroll {
+    overflow-x: visible;
+  }
+
+  table {
+    min-width: 0;
+  }
+
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  tbody tr {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 6px 16px;
+    margin-bottom: 12px;
+  }
+
+  tbody tr:hover {
+    background: var(--surface);
+  }
+
+  tbody td {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    padding: 11px 0;
+    font-size: 15px;
+    text-align: left;
+  }
+
+  tbody td + td {
+    border-top: 1px solid var(--line);
+  }
+
+  /* margin-right:auto pushes every value to the right edge, however
+     many elements the cell holds (the actions cell holds three). */
+  tbody td::before {
+    content: attr(data-label);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    margin-right: auto;
+    flex: 0 0 auto;
+  }
+
+  .table-header {
+    align-items: stretch;
+  }
+
+  .empty-state {
+    padding: 40px 10px;
+  }
+
+  .empty-state .primary-btn {
+    width: 100%;
+  }
+}
+
+/* ===========================
+   Narrow — single column stacks
+=========================== */
+
+@media (max-width: 640px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+/* ===========================
+   Small phones
+=========================== */
+
+@media (max-width: 420px) {
+  .content {
+    padding: 18px 14px 32px;
+  }
+
+  .card {
+    padding: 18px;
+  }
+
+  .chart-container,
+  .pie-container {
+    height: 220px;
+  }
+
+  .card h2 {
+    font-size: 26px;
+  }
+}

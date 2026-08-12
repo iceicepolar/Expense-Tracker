@@ -53,8 +53,9 @@ class Config:
     #Disable modification tracking
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    #Symbol used everywhere amounts are displayed
-    CURRENCY_SYMBOL = os.environ.get("CURRENCY_SYMBOL", "$")
+    #Symbol used everywhere amounts are displayed.
+    #Override with the CURRENCY_SYMBOL environment variable if needed.
+    CURRENCY_SYMBOL = os.environ.get("CURRENCY_SYMBOL", "₱")
 
 
 #Categories offered in the add / edit forms

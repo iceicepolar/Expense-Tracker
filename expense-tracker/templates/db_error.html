@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Database Unavailable{% endblock %}
+
+{% block content %}
+
+<div class="empty-state">
+  <i class="fa-solid fa-database"></i>
+  <h3>The database isn't reachable</h3>
+  <p>{{ message }}</p>
+  <p class="muted">
+    Set <code>DATABASE_URL</code> in your host's environment variables, then
+    redeploy. Visit <code>/health</code> for the current configuration.
+  </p>
+</div>
+
+{% endblock %}

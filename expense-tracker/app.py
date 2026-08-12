@@ -103,21 +103,49 @@ def create_app():
     #Load settings from config.py
     app.config.from_object(Config)
 
-    #Connect SQLAlchemy to the Flask
-    db.init_app(app)
+    #Nothing during start-up may raise: an exception at import time takes the
+    #whole serverless function down with an unreadable
+    #FUNCTION_INVOCATION_FAILED, so failures are recorded and surfaced as a
+    #readable page instead.
+    app.config["DB_ERROR"] = None
 
-    #Create database tables if they don't exist
+    #Connect SQLAlchemy to the Flask. This builds the engine straight away,
+    #so a missing driver or malformed URL fails here rather than on first use.
+    try:
+        db.init_app(app)
+    except Exception as exc:
+        app.logger.exception("Database setup failed")
+        app.config["DB_ERROR"] = (
+            f"Could not set up the database ({type(exc).__name__}): {exc}"
+        )
+
     with app.app_context():
         #Only the local SQLite setup needs a folder on disk. Serverless
         #filesystems are read-only, so makedirs would crash on boot there.
-        if not app.config["IS_HOSTED_DB"]:
-            database_folder = os.path.join(app.root_path, 'database')
+        if app.config["DB_ERROR"] is None and not app.config["IS_HOSTED_DB"]:
+            if os.environ.get("VERCEL"):
+                app.config["DB_ERROR"] = (
+                    "No DATABASE_URL is set. Serverless hosting has no "
+                    "persistent disk, so the SQLite fallback cannot be used "
+                    "here - add a Postgres connection string."
+                )
+            else:
+                database_folder = os.path.join(app.root_path, 'database')
 
-            #Create the database folder if missing
-            if not os.path.exists(database_folder):
-                os.makedirs(database_folder)
+                #Create the database folder if missing
+                try:
+                    os.makedirs(database_folder, exist_ok=True)
+                except OSError as exc:
+                    app.config["DB_ERROR"] = f"Cannot create database folder: {exc}"
 
-        db.create_all()
+        if app.config["DB_ERROR"] is None:
+            try:
+                db.create_all()
+            except Exception as exc:
+                app.logger.exception("Database initialisation failed")
+                app.config["DB_ERROR"] = (
+                    f"Could not reach the database ({type(exc).__name__}): {exc}"
+                )
 
     # -- template helpers ---------------------------------------------------
 
@@ -329,6 +357,31 @@ def create_app():
     def api_transactions():
         rows = Expense.query.order_by(Expense.transaction_date.desc()).all()
         return jsonify([row.to_dict() for row in rows])
+
+    @app.before_request
+    def block_when_database_is_down():
+        """Show the reason instead of letting every route explode."""
+        if app.config["DB_ERROR"] and request.endpoint != "health":
+            return render_template(
+                'db_error.html', message=app.config["DB_ERROR"]
+            ), 503
+
+    @app.route('/health')
+    def health():
+        """Deployment diagnostics. Deliberately reveals no credentials."""
+        uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        return jsonify(
+            {
+                "ok": app.config["DB_ERROR"] is None,
+                "driver": uri.split("://", 1)[0],
+                "database_url_set": bool(
+                    os.environ.get("DATABASE_URL")
+                    or os.environ.get("POSTGRES_URL")
+                ),
+                "secret_key_set": bool(os.environ.get("SECRET_KEY")),
+                "error": app.config["DB_ERROR"],
+            }
+        )
 
     @app.errorhandler(404)
     def not_found(_):

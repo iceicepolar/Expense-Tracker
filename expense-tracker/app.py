@@ -9,6 +9,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     url_for,
 )
 
@@ -358,10 +359,21 @@ def create_app():
         rows = Expense.query.order_by(Expense.transaction_date.desc()).all()
         return jsonify([row.to_dict() for row in rows])
 
+    #Routes that must keep working even when the database is unreachable,
+    #otherwise the installed app cannot boot or show its offline page.
+    DB_FREE_ENDPOINTS = {
+        "health",
+        "static",
+        "manifest",
+        "service_worker",
+        "icons",
+        "offline_page",
+    }
+
     @app.before_request
     def block_when_database_is_down():
         """Show the reason instead of letting every route explode."""
-        if app.config["DB_ERROR"] and request.endpoint != "health":
+        if app.config["DB_ERROR"] and request.endpoint not in DB_FREE_ENDPOINTS:
             return render_template(
                 'db_error.html', message=app.config["DB_ERROR"]
             ), 503
@@ -382,6 +394,37 @@ def create_app():
                 "error": app.config["DB_ERROR"],
             }
         )
+
+    # -- PWA files ----------------------------------------------------------
+    #In production Vercel serves everything under public/ straight from its
+    #CDN, so these routes only ever run during local development. The service
+    #worker has to live at the root to control the whole site.
+
+    def _public(filename, **kwargs):
+        return send_from_directory(
+            os.path.join(app.root_path, 'public'), filename, **kwargs
+        )
+
+    @app.route('/manifest.json')
+    def manifest():
+        return _public('manifest.json', mimetype='application/manifest+json')
+
+    @app.route('/sw.js')
+    def service_worker():
+        response = _public('sw.js', mimetype='application/javascript')
+        #Never let a stale worker pin itself in the browser cache
+        response.headers['Cache-Control'] = 'no-cache'
+        return response
+
+    @app.route('/icons/<path:filename>')
+    def icons(filename):
+        return send_from_directory(
+            os.path.join(app.root_path, 'public', 'icons'), filename
+        )
+
+    @app.route('/offline')
+    def offline_page():
+        return render_template('offline.html')
 
     @app.errorhandler(404)
     def not_found(_):

@@ -753,6 +753,40 @@ tbody tr:hover {
   margin-top: 28px;
 }
 
+/* ===========================
+   Offline banner
+=========================== */
+
+.offline-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--gold-soft);
+  border-top: 1px solid #6b5320;
+  color: #f2d79a;
+  font-size: 14px;
+  text-align: center;
+}
+
+.offline-banner[hidden] {
+  display: none;
+}
+
+/* Dim the controls that cannot work without a connection */
+body.is-offline .primary-btn,
+body.is-offline .add-btn,
+body.is-offline .danger-btn,
+body.is-offline .icon-btn--danger {
+  opacity: .5;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

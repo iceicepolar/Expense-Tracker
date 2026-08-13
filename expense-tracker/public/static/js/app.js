@@ -66,3 +66,74 @@
     });
   });
 })();
+
+// ===============================
+// Installable app + offline support
+// ===============================
+
+(function () {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js").catch(function (error) {
+        console.warn("Service worker registration failed", error);
+      });
+    });
+  }
+
+  const banner = document.getElementById("offlineBanner");
+  const bannerText = document.getElementById("offlineBannerText");
+  if (!banner) return;
+
+  const STAMP = "ledger:lastSync";
+
+  function describeAge() {
+    const saved = Number(window.localStorage.getItem(STAMP));
+    if (!saved) return "";
+
+    const minutes = Math.round((Date.now() - saved) / 60000);
+    if (minutes < 1) return " from just now";
+    if (minutes < 60) return ` from ${minutes} min ago`;
+
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return ` from ${hours} hr ago`;
+    return ` from ${Math.round(hours / 24)} day(s) ago`;
+  }
+
+  function render() {
+    const offline = !navigator.onLine;
+    banner.hidden = !offline;
+    document.body.classList.toggle("is-offline", offline);
+
+    if (offline) {
+      bannerText.textContent =
+        "You're offline — showing saved data" + describeAge();
+    } else {
+      // Only stamp a real, freshly served page
+      window.localStorage.setItem(STAMP, String(Date.now()));
+    }
+  }
+
+  window.addEventListener("online", render);
+  window.addEventListener("offline", render);
+  render();
+
+  // Saving needs the server, so say so instead of failing silently
+  document.querySelectorAll("form").forEach(function (form) {
+    if (form.method && form.method.toLowerCase() !== "post") return;
+
+    form.addEventListener(
+      "submit",
+      function (event) {
+        if (!navigator.onLine) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          window.alert(
+            "You're offline. Reconnect to save this change — " +
+              "your existing transactions are still viewable."
+          );
+        }
+      },
+      true // capture, so this runs before the delete confirmation
+    );
+  });
+})();

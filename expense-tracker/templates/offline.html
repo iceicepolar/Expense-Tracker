@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Offline{% endblock %}
+
+{% block content %}
+
+<div class="empty-state">
+  <i class="fa-solid fa-cloud-arrow-down"></i>
+  <h3>You're offline</h3>
+  <p>
+    This page hasn't been saved to your device yet. Open the app once while
+    connected and your transactions will be available offline from then on.
+  </p>
+  <a class="primary-btn" href="{{ url_for('dashboard') }}">
+    <i class="fa-solid fa-rotate-right"></i>
+    <span>Try again</span>
+  </a>
+</div>
+
+{% endblock %}

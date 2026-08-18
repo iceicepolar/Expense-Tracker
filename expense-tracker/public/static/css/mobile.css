@@ -393,3 +393,26 @@
     font-size: 19px;
   }
 }
+
+/* ===========================
+   Goals
+=========================== */
+
+@media (max-width: 900px) {
+  /* The blanket full-width rule for .primary-btn is right for page-level
+     actions but wrong here - it pushes "Add" onto a row of its own and
+     makes every goal card taller for no gain. */
+  .goal__add .primary-btn {
+    width: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .goal {
+    padding: 20px;
+  }
+
+  .goal__figures strong {
+    font-size: 21px;
+  }
+}

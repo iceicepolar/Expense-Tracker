@@ -101,6 +101,12 @@
                 <span>Transactions</span>
             </a>
 
+            <a href="{{ url_for('goals') }}"
+               class="{{ 'active' if request.endpoint in ('goals', 'add_goal', 'edit_goal') }}">
+                <i class="fa-solid fa-bullseye"></i>
+                <span>Goals</span>
+            </a>
+
             <span class="nav-soon">
                 <i class="fa-solid fa-chart-line"></i>
                 <span>Analytics</span>

@@ -105,3 +105,80 @@ class Expense(db.Model):
 
     def __repr__(self):
         return f"<Expense {self.description}>"
+
+
+class Goal(db.Model):
+    """
+    Something you are saving up for, and how far along you are.
+
+    Progress is a stored figure rather than one derived from transactions:
+    a "Savings" transaction cannot say *which* goal it was for, so deriving it
+    would guess wrong the moment there is more than one goal running.
+    """
+
+    __tablename__ = "goals"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    #Not nullable, unlike expenses.user_id - this table is new, so there are
+    #no rows from before accounts existed that would need adopting.
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
+
+    name = db.Column(db.String(120), nullable=False)
+
+    target_amount = db.Column(db.Float, nullable=False)
+
+    saved_amount = db.Column(db.Float, nullable=False, default=0.0)
+
+    #Optional. When set, the goal can say what you need to put aside monthly.
+    target_date = db.Column(db.Date, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    @property
+    def remaining(self):
+        return max(self.target_amount - self.saved_amount, 0.0)
+
+    @property
+    def is_complete(self):
+        return self.saved_amount >= self.target_amount
+
+    @property
+    def percent(self):
+        """Whole-number progress, capped at 100 so the bar cannot overflow."""
+        if self.target_amount <= 0:
+            return 0
+        return min(int(self.saved_amount / self.target_amount * 100), 100)
+
+    @property
+    def months_left(self):
+        """
+        Whole months until the target date, or None when there is no date.
+
+        Returns 0 once the date has passed, which the template reads as
+        "overdue" rather than dividing by it.
+        """
+        if not self.target_date:
+            return None
+        today = date.today()
+        if self.target_date <= today:
+            return 0
+        months = (self.target_date.year - today.year) * 12 + (
+            self.target_date.month - today.month
+        )
+        #Same month still counts as one month to save in, never zero - that
+        #would make per_month a division by zero.
+        return max(months, 1)
+
+    @property
+    def per_month(self):
+        """What you would need to set aside each month to finish on time."""
+        months = self.months_left
+        if not months or self.is_complete:
+            return None
+        return self.remaining / months
+
+    def __repr__(self):
+        return f"<Goal {self.name}>"

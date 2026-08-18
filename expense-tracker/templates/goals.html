@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Goals{% endblock %}
+
+{% block content %}
+
+<div class="top-header">
+
+  <div>
+    <span class="month">SAVING FOR</span>
+    <h1>Goals</h1>
+  </div>
+
+  <div class="top-header__actions">
+    <a class="primary-btn" href="{{ url_for('add_goal') }}">
+      <i class="fa-solid fa-plus"></i>
+      <span>New Goal</span>
+    </a>
+  </div>
+
+</div>
+
+{% if goals %}
+
+  <div class="cards">
+
+    <div class="card">
+      <div class="icon gold"><i class="fa-solid fa-bullseye"></i></div>
+      <h4>Total Target</h4>
+      <h2>{{ total_target|money }}</h2>
+    </div>
+
+    <div class="card">
+      <div class="icon green"><i class="fa-solid fa-piggy-bank"></i></div>
+      <h4>Saved So Far</h4>
+      <h2>{{ total_saved|money }}</h2>
+    </div>
+
+    <div class="card">
+      <div class="icon red"><i class="fa-solid fa-hourglass-half"></i></div>
+      <h4>Still To Go</h4>
+      <h2>{{ (total_target - total_saved)|money }}</h2>
+    </div>
+
+  </div>
+
+  <div class="goal-grid">
+
+    {% for goal in goals %}
+
+      <article class="goal {{ 'is-done' if goal.is_complete }}">
+
+        <header class="goal__head">
+          <h3>{{ goal.name }}</h3>
+          {% if goal.is_complete %}
+            <span class="goal__badge"><i class="fa-solid fa-check"></i> Funded</span>
+          {% endif %}
+        </header>
+
+        <p class="goal__figures">
+          <strong>{{ goal.saved_amount|money }}</strong>
+          <span class="muted">of {{ goal.target_amount|money }}</span>
+        </p>
+
+        <div class="goal__bar" role="progressbar"
+             aria-valuenow="{{ goal.percent }}" aria-valuemin="0" aria-valuemax="100"
+             aria-label="{{ goal.name }} progress">
+          <span style="width: {{ goal.percent }}%"></span>
+        </div>
+
+        <p class="goal__meta">
+          <span class="goal__percent">{{ goal.percent }}%</span>
+          {% if goal.is_complete %}
+            <span>Nothing left to save</span>
+          {% else %}
+            <span>{{ goal.remaining|money }} to go</span>
+          {% endif %}
+        </p>
+
+        {% if goal.target_date %}
+          <p class="goal__when">
+            <i class="fa-solid fa-calendar-day"></i>
+            {% if goal.months_left == 0 and not goal.is_complete %}
+              Target date passed ({{ goal.target_date.strftime('%d %b %Y') }})
+            {% else %}
+              By {{ goal.target_date.strftime('%d %b %Y') }}
+              {% if goal.per_month %}
+                — about {{ goal.per_month|money }}/month
+              {% endif %}
+            {% endif %}
+          </p>
+        {% endif %}
+
+        {% if not goal.is_complete %}
+          <form method="post" class="goal__add"
+                action="{{ url_for('contribute_goal', goal_id=goal.id) }}">
+            <label class="sr-only" for="amount-{{ goal.id }}">Amount to add</label>
+            <input type="number" id="amount-{{ goal.id }}" name="amount"
+                   step="0.01" min="0.01" inputmode="decimal"
+                   placeholder="Add amount" required>
+            <button type="submit" class="primary-btn">Add</button>
+            <label class="goal__log">
+              {# Keeps the ledger honest: money set aside shows up as a
+                 Savings transaction too, instead of only here. #}
+              <input type="checkbox" name="log_transaction" value="1" checked>
+              <span>Also record as a Savings transaction</span>
+            </label>
+          </form>
+        {% endif %}
+
+        <footer class="goal__actions">
+          <a class="icon-btn" href="{{ url_for('edit_goal', goal_id=goal.id) }}"
+             aria-label="Edit {{ goal.name }}">
+            <i class="fa-solid fa-pen"></i>
+          </a>
+          <form method="post" action="{{ url_for('delete_goal', goal_id=goal.id) }}"
+                data-confirm="Delete the goal &quot;{{ goal.name }}&quot;?">
+            <button class="icon-btn icon-btn--danger" type="submit"
+                    aria-label="Delete {{ goal.name }}">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </form>
+        </footer>
+
+      </article>
+
+    {% endfor %}
+
+  </div>
+
+{% else %}
+
+  <div class="table-card">
+    <div class="empty-state">
+      <i class="fa-solid fa-bullseye"></i>
+      <h3>No goals yet</h3>
+      <p>Set a target for something you are saving up for and track it here.</p>
+      <a class="primary-btn" href="{{ url_for('add_goal') }}">
+        <i class="fa-solid fa-plus"></i>
+        <span>New Goal</span>
+      </a>
+    </div>
+  </div>
+
+{% endif %}
+
+{% endblock %}

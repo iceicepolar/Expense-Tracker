@@ -18,7 +18,7 @@ from flask_login import current_user, login_required
 
 from auth import auth as auth_blueprint, login_manager
 from config import CATEGORIES, CATEGORY_COLORS, TRANSACTION_TYPES, Config
-from models import Expense, db
+from models import Expense, Goal, db
 from schema import ensure_columns
 
 # ---------------------------------------------------------------------------
@@ -92,6 +92,63 @@ def parse_form(form):
         ).date()
     except ValueError:
         errors["transaction_date"] = "Use a valid date."
+
+    return data, errors
+
+
+def parse_goal_form(form):
+    """
+    Validate the goal add / edit form.
+
+    Mirrors parse_form: raw values always come back so the page can be
+    re-rendered with what was typed rather than blanked.
+    """
+    data = {
+        "name": (form.get("name") or "").strip(),
+        "target_amount": (form.get("target_amount") or "").strip(),
+        "saved_amount": (form.get("saved_amount") or "").strip(),
+        "target_date": (form.get("target_date") or "").strip(),
+    }
+    errors = {}
+
+    if not data["name"]:
+        errors["name"] = "Give the goal a name."
+    elif len(data["name"]) > 120:
+        errors["name"] = "Keep the name under 120 characters."
+
+    try:
+        target = float(data["target_amount"])
+        if target <= 0:
+            errors["target_amount"] = "The target must be more than zero."
+        else:
+            data["target_value"] = round(target, 2)
+    except ValueError:
+        errors["target_amount"] = "The target must be a number."
+
+    #Blank means "nothing saved yet" rather than an error - most goals start
+    #at zero and typing the 0 is busywork.
+    if not data["saved_amount"]:
+        data["saved_value"] = 0.0
+    else:
+        try:
+            saved = float(data["saved_amount"])
+            if saved < 0:
+                errors["saved_amount"] = "Saved cannot be negative."
+            else:
+                data["saved_value"] = round(saved, 2)
+        except ValueError:
+            errors["saved_amount"] = "Saved must be a number."
+
+    #The date is optional; only a malformed one is an error.
+    if not data["target_date"]:
+        data["date_value"] = None
+    else:
+        try:
+            data["date_value"] = datetime.strptime(
+                data["target_date"], "%Y-%m-%d"
+            ).date()
+        except ValueError:
+            errors["target_date"] = "Use a valid date, or leave it empty."
 
     return data, errors
 
@@ -194,6 +251,13 @@ def create_app():
         anyone who guessed the number.
         """
         return owned().filter_by(id=expense_id).first()
+
+    def owned_goals():
+        """Goals belong to an account exactly as transactions do."""
+        return Goal.query.filter_by(user_id=current_user.id)
+
+    def owned_goal_or_none(goal_id):
+        return owned_goals().filter_by(id=goal_id).first()
 
     # -- template helpers ---------------------------------------------------
 
@@ -423,6 +487,161 @@ def create_app():
             filters=filters,
             show_running=show_running,
         )
+
+    # -- goals --------------------------------------------------------------
+
+    @app.route('/goals')
+    @login_required
+    def goals():
+        rows = owned_goals().order_by(Goal.created_at.desc()).all()
+
+        #Finished goals sink to the bottom - what you are still saving for is
+        #the useful part of the page.
+        rows.sort(key=lambda g: (g.is_complete, -g.percent))
+
+        return render_template(
+            'goals.html',
+            goals=rows,
+            total_target=sum(g.target_amount for g in rows),
+            total_saved=sum(g.saved_amount for g in rows),
+        )
+
+    @app.route('/goals/new', methods=['GET', 'POST'])
+    @login_required
+    def add_goal():
+        if request.method == 'POST':
+            data, errors = parse_goal_form(request.form)
+
+            if errors:
+                flash('Please fix the highlighted fields.', 'error')
+                return render_template(
+                    'goal_form.html', data=data, errors=errors,
+                    goal=None, action=url_for('add_goal'),
+                    submit_label='Create goal',
+                ), 400
+
+            db.session.add(
+                Goal(
+                    user_id=current_user.id,
+                    name=data["name"],
+                    target_amount=data["target_value"],
+                    saved_amount=data["saved_value"],
+                    target_date=data["date_value"],
+                )
+            )
+            db.session.commit()
+
+            flash('Goal created.', 'success')
+            return redirect(url_for('goals'))
+
+        return render_template(
+            'goal_form.html', data={}, errors={}, goal=None,
+            action=url_for('add_goal'), submit_label='Create goal',
+        )
+
+    @app.route('/goals/<int:goal_id>/edit', methods=['GET', 'POST'])
+    @login_required
+    def edit_goal(goal_id):
+        goal = owned_goal_or_none(goal_id)
+        if goal is None:
+            flash('That goal no longer exists.', 'error')
+            return redirect(url_for('goals'))
+
+        if request.method == 'POST':
+            data, errors = parse_goal_form(request.form)
+
+            if errors:
+                flash('Please fix the highlighted fields.', 'error')
+                return render_template(
+                    'goal_form.html', data=data, errors=errors, goal=goal,
+                    action=url_for('edit_goal', goal_id=goal.id),
+                    submit_label='Save changes',
+                ), 400
+
+            goal.name = data["name"]
+            goal.target_amount = data["target_value"]
+            goal.saved_amount = data["saved_value"]
+            goal.target_date = data["date_value"]
+            db.session.commit()
+
+            flash('Goal updated.', 'success')
+            return redirect(url_for('goals'))
+
+        return render_template(
+            'goal_form.html',
+            goal=goal,
+            data={
+                "name": goal.name,
+                "target_amount": f"{goal.target_amount:.2f}",
+                "saved_amount": f"{goal.saved_amount:.2f}",
+                "target_date": (
+                    goal.target_date.isoformat() if goal.target_date else ""
+                ),
+            },
+            errors={},
+            action=url_for('edit_goal', goal_id=goal.id),
+            submit_label='Save changes',
+        )
+
+    @app.route('/goals/<int:goal_id>/contribute', methods=['POST'])
+    @login_required
+    def contribute_goal(goal_id):
+        """
+        Put money towards a goal.
+
+        Optionally records the matching Savings transaction at the same time,
+        so the ledger and the goal cannot quietly disagree about where the
+        money went.
+        """
+        goal = owned_goal_or_none(goal_id)
+        if goal is None:
+            flash('That goal no longer exists.', 'error')
+            return redirect(url_for('goals'))
+
+        raw = (request.form.get("amount") or "").strip()
+        try:
+            amount = round(float(raw), 2)
+        except ValueError:
+            flash('Enter a number to add.', 'error')
+            return redirect(url_for('goals'))
+
+        if amount <= 0:
+            flash('Enter an amount greater than zero.', 'error')
+            return redirect(url_for('goals'))
+
+        goal.saved_amount = round(goal.saved_amount + amount, 2)
+
+        if request.form.get("log_transaction"):
+            db.session.add(
+                Expense(
+                    user_id=current_user.id,
+                    description=f"Saved towards {goal.name}",
+                    category="Savings",
+                    amount=amount,
+                    transaction_type="Expense",
+                    transaction_date=date.today(),
+                )
+            )
+
+        db.session.commit()
+
+        if goal.is_complete:
+            flash(f'{goal.name} is fully funded.', 'success')
+        else:
+            flash(f'Added to {goal.name}.', 'success')
+        return redirect(url_for('goals'))
+
+    @app.route('/goals/<int:goal_id>/delete', methods=['POST'])
+    @login_required
+    def delete_goal(goal_id):
+        goal = owned_goal_or_none(goal_id)
+        if goal is None:
+            flash('That goal no longer exists.', 'error')
+        else:
+            db.session.delete(goal)
+            db.session.commit()
+            flash('Goal deleted.', 'success')
+        return redirect(url_for('goals'))
 
     @app.route('/add', methods=['GET', 'POST'])
     @login_required

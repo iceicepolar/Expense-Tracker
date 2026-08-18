@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit goal' if goal else 'New goal' }}{% endblock %}
+
+{% block content %}
+
+<div class="top-header">
+  <div>
+    <span class="month">GOALS</span>
+    <h1>{{ 'Edit goal' if goal else 'New goal' }}</h1>
+  </div>
+</div>
+
+<form method="post" action="{{ action }}" class="form-card" novalidate>
+
+  <div class="form-row">
+    <label for="name">What are you saving for?</label>
+    <input type="text" id="name" name="name" maxlength="120"
+           value="{{ data.name or '' }}"
+           placeholder="e.g. New laptop"
+           {% if errors.name %}aria-invalid="true"{% endif %}
+           autofocus required>
+    {% if errors.name %}<small class="error">{{ errors.name }}</small>{% endif %}
+  </div>
+
+  <div class="form-grid">
+
+    <div class="form-row">
+      <label for="target_amount">Target amount</label>
+      <input type="number" id="target_amount" name="target_amount"
+             step="0.01" min="0.01" inputmode="decimal"
+             value="{{ data.target_amount or '' }}"
+             placeholder="0.00"
+             {% if errors.target_amount %}aria-invalid="true"{% endif %}
+             required>
+      {% if errors.target_amount %}<small class="error">{{ errors.target_amount }}</small>{% endif %}
+    </div>
+
+    <div class="form-row">
+      <label for="saved_amount">Already saved</label>
+      <input type="number" id="saved_amount" name="saved_amount"
+             step="0.01" min="0" inputmode="decimal"
+             value="{{ data.saved_amount or '' }}"
+             placeholder="0.00"
+             {% if errors.saved_amount %}aria-invalid="true"{% endif %}>
+      {% if errors.saved_amount %}
+        <small class="error">{{ errors.saved_amount }}</small>
+      {% else %}
+        <small class="hint">Leave empty if you are starting from zero.</small>
+      {% endif %}
+    </div>
+
+    <div class="form-row">
+      <label for="target_date">Target date</label>
+      <input type="date" id="target_date" name="target_date"
+             value="{{ data.target_date or '' }}"
+             {% if errors.target_date %}aria-invalid="true"{% endif %}>
+      {% if errors.target_date %}
+        <small class="error">{{ errors.target_date }}</small>
+      {% else %}
+        <small class="hint">Optional — used to work out a monthly figure.</small>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <div class="form-actions">
+    <a class="ghost-btn" href="{{ url_for('goals') }}">Cancel</a>
+    <button type="submit" class="primary-btn">{{ submit_label }}</button>
+  </div>
+
+</form>
+
+{% endblock %}

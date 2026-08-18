@@ -89,16 +89,14 @@
 
         <nav>
 
-            {% set all_time = request.args.get('month') == 'all' %}
-
             <a href="{{ url_for('dashboard') }}"
-               class="{{ 'active' if request.endpoint == 'dashboard' and not all_time }}">
+               class="{{ 'active' if request.endpoint == 'dashboard' }}">
                 <i class="fa-solid fa-chart-pie"></i>
                 <span>Overview</span>
             </a>
 
-            <a href="{{ url_for('dashboard', month='all') }}"
-               class="{{ 'active' if request.endpoint == 'dashboard' and all_time }}">
+            <a href="{{ url_for('transactions', month='all') }}"
+               class="{{ 'active' if request.endpoint == 'transactions' }}">
                 <i class="fa-solid fa-receipt"></i>
                 <span>Transactions</span>
             </a>

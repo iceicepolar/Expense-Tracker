@@ -342,3 +342,54 @@
     font-size: 26px;
   }
 }
+
+/* ===========================
+   Transaction history
+=========================== */
+
+/* A phone has no hover, so controls revealed on hover can never be reached.
+   Show them permanently wherever hover is not available. */
+@media (hover: none) {
+  .receipt__actions {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  /* At this width the icon, amount and buttons leave the description about
+     50px, which is unreadable. Give it the full row and drop the buttons
+     underneath, right-aligned. */
+  .receipt__line {
+    grid-template-columns: 34px 1fr auto;
+    row-gap: 10px;
+    padding: 14px 18px;
+  }
+
+  .receipt__actions {
+    opacity: 1;
+    grid-column: 2 / -1;
+    justify-content: flex-end;
+  }
+
+  .receipt__date,
+  .receipt__subtotal,
+  .receipt__head,
+  .receipt__foot {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .receipt__subtotal {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+
+  .receipt__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .receipt__total {
+    font-size: 19px;
+  }
+}

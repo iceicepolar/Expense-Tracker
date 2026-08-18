@@ -32,7 +32,16 @@ from sqlalchemy.orm import Session
 
 from config import BASE_DIR, engine_options  # noqa: F401  (also loads .env)
 from models import Expense, User, db
-from schema import ensure_user_column
+from schema import ensure_columns
+
+#Every column carried across, taken from the model rather than typed out, so
+#a column added to models.py later cannot be silently dropped in transit.
+#id is per-database and user_id is remapped to the target's own account row.
+COPIED_FIELDS = [
+    column.name
+    for column in Expense.__table__.columns
+    if column.name not in ("id", "user_id")
+]
 
 #Fields that decide whether two transactions are "the same" one. created_at is
 #deliberately excluded - it records when a row was typed in, not what it is.
@@ -77,7 +86,7 @@ def copy(source_url, target_url, dry_run):
 
     if not dry_run:
         db.metadata.create_all(target_engine)
-        ensure_user_column(target_engine)
+        ensure_columns(target_engine)
         target_ready = True
     elif not target_ready:
         print("\n  Target is empty - its tables will be created on the real run.")
@@ -148,12 +157,7 @@ def copy(source_url, target_url, dry_run):
                     target.add(
                         Expense(
                             user_id=existing.id,
-                            description=row.description,
-                            category=row.category,
-                            amount=row.amount,
-                            transaction_type=row.transaction_type,
-                            transaction_date=row.transaction_date,
-                            created_at=row.created_at,
+                            **{f: getattr(row, f) for f in COPIED_FIELDS},
                         )
                     )
 

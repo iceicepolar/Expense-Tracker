@@ -79,6 +79,10 @@ class Expense(db.Model):
 
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
+    #Optional free-text note. nullable=True because every transaction
+    #already in the database predates this column and has none.
+    notes = db.Column(db.String(300), nullable=True)
+
     @property
     def is_income(self):
         return self.transaction_type == "Income"
@@ -96,6 +100,7 @@ class Expense(db.Model):
             "amount": self.amount,
             "transaction_type": self.transaction_type,
             "transaction_date": self.transaction_date.isoformat(),
+            "notes": self.notes,
         }
 
     def __repr__(self):

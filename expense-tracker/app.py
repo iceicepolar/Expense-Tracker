@@ -1,6 +1,7 @@
 import calendar
 import os
 from datetime import date, datetime
+from itertools import groupby
 
 from flask import (
     Flask,
@@ -18,7 +19,7 @@ from flask_login import current_user, login_required
 from auth import auth as auth_blueprint, login_manager
 from config import CATEGORIES, CATEGORY_COLORS, TRANSACTION_TYPES, Config
 from models import Expense, db
-from schema import ensure_user_column
+from schema import ensure_columns
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -146,10 +147,10 @@ def create_app():
         if app.config["DB_ERROR"] is None:
             try:
                 db.create_all()
-                #create_all() never alters a table that already exists, so the
-                #new ownership column has to be added separately on databases
-                #that predate accounts.
-                ensure_user_column(db.engine, app.logger)
+                #create_all() never alters a table that already exists, so
+                #columns added to a model after the fact have to be applied
+                #separately. See REQUIRED_COLUMNS in schema.py.
+                ensure_columns(db.engine, app.logger)
             except Exception as exc:
                 app.logger.exception("Database initialisation failed")
                 app.config["DB_ERROR"] = (
@@ -210,6 +211,52 @@ def create_app():
         }
 
     # -- routes -------------------------------------------------------------
+
+    def recorded_months():
+        """Every month this account has data in, newest first, plus today."""
+        recorded = [
+            month_key(row[0])
+            for row in db.session.query(Expense.transaction_date)
+            .filter(Expense.user_id == current_user.id)
+            .distinct()
+        ]
+        current = month_key(date.today())
+        return sorted({*recorded, current}, reverse=True), current
+
+    def read_filters(months, current):
+        """Pull the month / search / category / type filters off the query."""
+        selected = request.args.get("month", current)
+        if selected != "all" and selected not in months:
+            selected = current
+
+        return selected, {
+            "q": (request.args.get("q") or "").strip(),
+            "category": request.args.get("category", ""),
+            "type": request.args.get("type", ""),
+        }
+
+    def apply_filters(selected, filters):
+        """
+        The one place filters turn into a query.
+
+        Shared by the overview and the receipt view so the two can never drift
+        into disagreeing about what "this month, food only" means.
+        """
+        query = owned()
+
+        if selected != "all":
+            start, end = month_bounds(selected)
+            query = query.filter(Expense.transaction_date.between(start, end))
+        if filters["q"]:
+            query = query.filter(Expense.description.ilike(f"%{filters['q']}%"))
+        if filters["category"] in CATEGORIES:
+            query = query.filter(Expense.category == filters["category"])
+        if filters["type"] in TRANSACTION_TYPES:
+            query = query.filter(Expense.transaction_type == filters["type"])
+
+        return query.order_by(
+            Expense.transaction_date.desc(), Expense.id.desc()
+        )
 
     @app.route('/')
     @login_required
@@ -317,6 +364,65 @@ def create_app():
                 ],
             },
         }
+
+    @app.route('/transactions')
+    @login_required
+    def transactions():
+        """
+        A statement-style history: every entry in date order, grouped by day.
+
+        The overview answers "how am I doing"; this answers "what exactly
+        happened, and when". Same rows, read differently.
+        """
+        months, current = recorded_months()
+        selected, filters = read_filters(months, current)
+        rows = apply_filters(selected, filters).all()
+
+        total_income = sum(r.amount for r in rows if r.is_income)
+        total_expenses = sum(r.amount for r in rows if not r.is_income)
+
+        #A running balance only means anything when nothing is filtered out -
+        #under a search it would be the balance of an arbitrary subset, which
+        #looks authoritative while being meaningless. Walk oldest to newest,
+        #then flip back so the newest day still sits at the top.
+        show_running = not (filters["q"] or filters["category"] or filters["type"])
+
+        running = 0.0
+        balances = {}
+        for row in reversed(rows):
+            running += row.signed_amount
+            balances[row.id] = running
+
+        groups = []
+        for day, entries in groupby(rows, key=lambda r: r.transaction_date):
+            entries = list(entries)
+            groups.append(
+                {
+                    "date": day,
+                    "entries": entries,
+                    "income": sum(e.amount for e in entries if e.is_income),
+                    "spent": sum(e.amount for e in entries if not e.is_income),
+                    "net": sum(e.signed_amount for e in entries),
+                    #Balance as at the end of this day
+                    "balance": balances.get(entries[0].id, 0.0),
+                }
+            )
+
+        return render_template(
+            'transactions.html',
+            groups=groups,
+            count=len(rows),
+            total_income=total_income,
+            total_expenses=total_expenses,
+            balance=total_income - total_expenses,
+            months=[(m, month_label(m)) for m in months],
+            selected_month=selected,
+            period_label=(
+                "All time" if selected == "all" else month_label(selected)
+            ),
+            filters=filters,
+            show_running=show_running,
+        )
 
     @app.route('/add', methods=['GET', 'POST'])
     @login_required

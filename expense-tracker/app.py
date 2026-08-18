@@ -299,6 +299,22 @@ def create_app():
             "type": request.args.get("type", ""),
         }
 
+    def month_neighbours(months, selected):
+        """
+        The months either side of the selected one, for the arrow buttons.
+
+        Steps only through months that actually hold transactions - walking
+        through a run of empty months to reach real data would be tedious and
+        tells you nothing. `months` is newest-first, so the older month is the
+        NEXT entry along and the newer one is the previous.
+        """
+        if selected == "all" or selected not in months:
+            return None, None
+        i = months.index(selected)
+        older = months[i + 1] if i + 1 < len(months) else None
+        newer = months[i - 1] if i > 0 else None
+        return older, newer
+
     def apply_filters(selected, filters):
         """
         The one place filters turn into a query.
@@ -359,6 +375,8 @@ def create_app():
             Expense.transaction_date.desc(), Expense.id.desc()
         ).all()
 
+        older, newer = month_neighbours(months, selected)
+
         total_expenses = sum(e.amount for e in expenses if not e.is_income)
         total_income = sum(e.amount for e in expenses if e.is_income)
         balance = total_income - total_expenses
@@ -375,6 +393,13 @@ def create_app():
                 "All time" if selected == "all" else month_label(selected)
             ),
             filters={"q": search, "category": category, "type": tx_type},
+            older_month=older,
+            newer_month=newer,
+            filter_args={
+                k: v for k, v in
+                (("q", search), ("category", category), ("type", tx_type))
+                if v
+            },
             chart_data=build_chart_data(selected),
         )
 
@@ -441,6 +466,7 @@ def create_app():
         months, current = recorded_months()
         selected, filters = read_filters(months, current)
         rows = apply_filters(selected, filters).all()
+        older, newer = month_neighbours(months, selected)
 
         total_income = sum(r.amount for r in rows if r.is_income)
         total_expenses = sum(r.amount for r in rows if not r.is_income)
@@ -485,6 +511,9 @@ def create_app():
                 "All time" if selected == "all" else month_label(selected)
             ),
             filters=filters,
+            older_month=older,
+            newer_month=newer,
+            filter_args={k: v for k, v in filters.items() if v},
             show_running=show_running,
         )
 

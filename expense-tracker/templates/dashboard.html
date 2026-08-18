@@ -13,18 +13,7 @@
 
   <div class="top-header__actions">
 
-    <form method="get" class="month-picker">
-      {% if filters.q %}<input type="hidden" name="q" value="{{ filters.q }}">{% endif %}
-      {% if filters.category %}<input type="hidden" name="category" value="{{ filters.category }}">{% endif %}
-      {% if filters.type %}<input type="hidden" name="type" value="{{ filters.type }}">{% endif %}
-      <label class="sr-only" for="month">Period</label>
-      <select name="month" id="month" onchange="this.form.submit()">
-        <option value="all" {{ 'selected' if selected_month == 'all' }}>All time</option>
-        {% for key, label in months %}
-          <option value="{{ key }}" {{ 'selected' if key == selected_month }}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </form>
+    {% with endpoint = 'dashboard' %}{% include '_month_picker.html' %}{% endwith %}
 
     <a class="primary-btn" href="{{ url_for('add_expense') }}">
       <i class="fa-solid fa-plus"></i>

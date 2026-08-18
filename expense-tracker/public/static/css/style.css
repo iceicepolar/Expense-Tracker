@@ -560,9 +560,52 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   padding: 11px 34px 11px 12px;
 }
 
+/* Month stepper: < [ August 2026 ] >
+   The arrows exist because the bare dropdown gave no hint that older
+   months were in there at all. */
+.month-picker {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+/* The form wrapper has to grow, otherwise the select inside it has nothing
+   to be 100% of and the row leaves a gap where the arrows end. */
+.month-picker form {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+
 .month-picker select {
-  width: auto;
+  width: 100%;
   min-width: 150px;
+  height: 100%;
+}
+
+.month-picker__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  border-radius: 10px;
+  background: var(--field);
+  color: #cfd0dd;
+  text-decoration: none;
+  font-size: 13px;
+  transition: background .15s ease, color .15s ease;
+}
+
+.month-picker__step:hover {
+  background: #2a2a44;
+  color: #fff;
+}
+
+/* Greyed rather than removed - a control that disappears is harder to
+   aim at next time than one that simply stops responding. */
+.month-picker__step.is-disabled {
+  opacity: .3;
+  pointer-events: none;
 }
 
 .search-field {

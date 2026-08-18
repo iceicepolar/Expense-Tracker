@@ -9,10 +9,20 @@
    later, once nothing depends on the old stylesheet.
    =========================================================== */
 
-@layer theme, base, components, utilities;
+@layer theme;
 
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Utilities are imported UNLAYERED on purpose.
+   style.css opens with an unlayered `* { margin: 0; padding: 0 }` reset, and
+   in the CSS cascade an unlayered rule beats a layered one no matter the
+   specificity. Put utilities in @layer utilities and that reset silently
+   wins: p-8 and every m-* / p-* utility computes to 0 while colours, radii
+   and flex utilities work fine - which reads as "Tailwind is half broken"
+   and is very hard to spot.
+   Unlayered, `.p-8` (a class) simply outranks `*`, and because tailwind.css
+   is linked after style.css it also wins ties against the old classes. */
+@import "tailwindcss/utilities.css";
 
 /* Scan the Jinja templates for class names */
 @source "../../../templates";

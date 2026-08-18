@@ -19,7 +19,7 @@ import sys
 from datetime import date, timedelta
 
 from app import app
-from models import Expense, User, db
+from models import Expense, Goal, GoalContribution, User, db
 
 SAMPLE = [
     ("Monthly salary", "Salary", 3200.00, "Income", 0),
@@ -139,12 +139,77 @@ def clear(email=None):
     print(f"Deleted {deleted} transaction(s) from {user.email}.")
 
 
+def rescue_goal_expenses(email=None):
+    """
+    Move "Saved towards <goal>" expenses into the goal's own ledger.
+
+    Earlier versions wrote a Savings expense for every goal contribution,
+    which counted saving as spending and buried the dashboard under a Spent
+    figure that had nothing to do with daily costs. Those rows become
+    GoalContribution entries and leave the transaction list, so the overview
+    goes back to being about day-to-day money only.
+
+    Reports by default; pass --apply to actually write.
+    """
+    apply_changes = "--apply" in sys.argv
+
+    rows = Expense.query.filter(Expense.description.like("Saved towards %")).all()
+    if not rows:
+        print("Nothing to move - no goal-created expenses found.")
+        return
+
+    print(f"Found {len(rows)} goal-created expense(s):")
+    print()
+    moved = unmatched = 0
+
+    for row in rows:
+        goal_name = row.description[len("Saved towards "):].strip()
+        goal = Goal.query.filter_by(name=goal_name, user_id=row.user_id).first()
+
+        if goal is None:
+            unmatched += 1
+            print(f"  ?   {row.transaction_date}  {row.amount:>12,.2f}  "
+                  f"no goal named '{goal_name}' - left alone")
+            continue
+
+        moved += 1
+        print(f"  ->  {row.transaction_date}  {row.amount:>12,.2f}  "
+              f"into goal '{goal.name}'")
+
+        if apply_changes:
+            db.session.add(
+                GoalContribution(
+                    goal_id=goal.id,
+                    user_id=row.user_id,
+                    amount=row.amount,
+                    occurred_on=row.transaction_date,
+                    note="Moved from the transaction list",
+                )
+            )
+            db.session.delete(row)
+
+    print()
+    if apply_changes:
+        db.session.flush()
+        for goal in Goal.query.all():
+            goal.recalculate()
+        db.session.commit()
+        print(f"Moved {moved} entr{'y' if moved == 1 else 'ies'} out of the "
+              f"transaction list; goal totals recalculated.")
+        if unmatched:
+            print(f"{unmatched} left in place - no matching goal.")
+    else:
+        print(f"Dry run. {moved} would move, {unmatched} would stay.")
+        print("Re-run with --apply to make the change.")
+
+
 COMMANDS = {
     "list": list_rows,
     "users": list_users,
     "claim": claim,
     "seed": seed,
     "clear": clear,
+    "rescue-goals": rescue_goal_expenses,
 }
 
 

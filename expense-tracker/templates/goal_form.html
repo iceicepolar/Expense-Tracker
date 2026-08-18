@@ -36,19 +36,24 @@
       {% if errors.target_amount %}<small class="error">{{ errors.target_amount }}</small>{% endif %}
     </div>
 
-    <div class="form-row">
-      <label for="saved_amount">Already saved</label>
-      <input type="number" id="saved_amount" name="saved_amount"
-             step="0.01" min="0" inputmode="decimal"
-             value="{{ data.saved_amount or '' }}"
-             placeholder="0.00"
-             {% if errors.saved_amount %}aria-invalid="true"{% endif %}>
-      {% if errors.saved_amount %}
-        <small class="error">{{ errors.saved_amount }}</small>
-      {% else %}
-        <small class="hint">Leave empty if you are starting from zero.</small>
-      {% endif %}
-    </div>
+    {% if not goal %}
+      {# Only on creation. After that the saved figure is the sum of the
+         goal's entries - editing it here is what let a goal report 0 saved
+         while its entries said otherwise. #}
+      <div class="form-row">
+        <label for="saved_amount">Already saved</label>
+        <input type="number" id="saved_amount" name="saved_amount"
+               step="0.01" min="0" inputmode="decimal"
+               value="{{ data.saved_amount or '' }}"
+               placeholder="0.00"
+               {% if errors.saved_amount %}aria-invalid="true"{% endif %}>
+        {% if errors.saved_amount %}
+          <small class="error">{{ errors.saved_amount }}</small>
+        {% else %}
+          <small class="hint">Leave empty if you are starting from zero.</small>
+        {% endif %}
+      </div>
+    {% endif %}
 
     <div class="form-row">
       <label for="target_date">Target date</label>

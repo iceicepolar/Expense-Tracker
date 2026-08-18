@@ -99,13 +99,36 @@
                    step="0.01" min="0.01" inputmode="decimal"
                    placeholder="Add amount" required>
             <button type="submit" class="primary-btn">Add</button>
-            <label class="goal__log">
-              {# Keeps the ledger honest: money set aside shows up as a
-                 Savings transaction too, instead of only here. #}
-              <input type="checkbox" name="log_transaction" value="1" checked>
-              <span>Also record as a Savings transaction</span>
-            </label>
           </form>
+        {% endif %}
+
+        {% if goal.contributions %}
+          {# The goal's own ledger. Kept here rather than mixed into the
+             overview, where a large transfer would read as spending. #}
+          <details class="goal__log">
+            <summary>
+              {{ goal.contributions|length }}
+              entr{{ 'y' if goal.contributions|length == 1 else 'ies' }}
+            </summary>
+            <ul>
+              {% for entry in goal.contributions %}
+                <li>
+                  <span class="goal__log-date">
+                    {{ entry.occurred_on.strftime('%d %b %Y') }}
+                  </span>
+                  <span class="goal__log-amount">+{{ entry.amount|money }}</span>
+                  <form method="post"
+                        action="{{ url_for('delete_contribution', goal_id=goal.id, contribution_id=entry.id) }}"
+                        data-confirm="Remove this {{ entry.amount|money }} entry?">
+                    <button type="submit" class="goal__log-remove"
+                            aria-label="Remove entry of {{ entry.amount|money }}">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </form>
+                </li>
+              {% endfor %}
+            </ul>
+          </details>
         {% endif %}
 
         <footer class="goal__actions">

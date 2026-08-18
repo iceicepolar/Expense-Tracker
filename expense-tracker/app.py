@@ -18,7 +18,7 @@ from flask_login import current_user, login_required
 
 from auth import auth as auth_blueprint, login_manager
 from config import CATEGORIES, CATEGORY_COLORS, TRANSACTION_TYPES, Config
-from models import Expense, Goal, db
+from models import Expense, Goal, GoalContribution, db
 from schema import ensure_columns
 
 # ---------------------------------------------------------------------------
@@ -549,15 +549,32 @@ def create_app():
                     submit_label='Create goal',
                 ), 400
 
-            db.session.add(
-                Goal(
-                    user_id=current_user.id,
-                    name=data["name"],
-                    target_amount=data["target_value"],
-                    saved_amount=data["saved_value"],
-                    target_date=data["date_value"],
-                )
+            goal = Goal(
+                user_id=current_user.id,
+                name=data["name"],
+                target_amount=data["target_value"],
+                saved_amount=0.0,
+                target_date=data["date_value"],
             )
+            db.session.add(goal)
+            db.session.flush()
+
+            #Anything already put aside becomes the first entry in the
+            #goal's ledger, so saved_amount always has contributions behind
+            #it rather than being a free-floating number.
+            if data["saved_value"] > 0:
+                db.session.add(
+                    GoalContribution(
+                        goal_id=goal.id,
+                        user_id=current_user.id,
+                        amount=data["saved_value"],
+                        occurred_on=date.today(),
+                        note="Already saved when the goal was created",
+                    )
+                )
+                db.session.flush()
+                goal.recalculate()
+
             db.session.commit()
 
             flash('Goal created.', 'success')
@@ -589,8 +606,10 @@ def create_app():
 
             goal.name = data["name"]
             goal.target_amount = data["target_value"]
-            goal.saved_amount = data["saved_value"]
             goal.target_date = data["date_value"]
+            #saved_amount is not editable here - it is the sum of the goal's
+            #contributions. Editing it directly is what let a goal claim 0
+            #saved while its entries said otherwise.
             db.session.commit()
 
             flash('Goal updated.', 'success')
@@ -602,7 +621,6 @@ def create_app():
             data={
                 "name": goal.name,
                 "target_amount": f"{goal.target_amount:.2f}",
-                "saved_amount": f"{goal.saved_amount:.2f}",
                 "target_date": (
                     goal.target_date.isoformat() if goal.target_date else ""
                 ),
@@ -618,9 +636,10 @@ def create_app():
         """
         Put money towards a goal.
 
-        Optionally records the matching Savings transaction at the same time,
-        so the ledger and the goal cannot quietly disagree about where the
-        money went.
+        Recorded only against the goal. Writing a matching Savings expense
+        was the previous behaviour and it was wrong: moving money into
+        savings is not spending, so a large transfer buried the dashboard
+        under a "Spent" figure that had nothing to do with daily costs.
         """
         goal = owned_goal_or_none(goal_id)
         if goal is None:
@@ -638,26 +657,50 @@ def create_app():
             flash('Enter an amount greater than zero.', 'error')
             return redirect(url_for('goals'))
 
-        goal.saved_amount = round(goal.saved_amount + amount, 2)
-
-        if request.form.get("log_transaction"):
-            db.session.add(
-                Expense(
-                    user_id=current_user.id,
-                    description=f"Saved towards {goal.name}",
-                    category="Savings",
-                    amount=amount,
-                    transaction_type="Expense",
-                    transaction_date=date.today(),
-                )
+        db.session.add(
+            GoalContribution(
+                goal_id=goal.id,
+                user_id=current_user.id,
+                amount=amount,
+                occurred_on=date.today(),
+                note=(request.form.get("note") or "").strip()[:150] or None,
             )
-
+        )
+        #flush so the new row is visible to recalculate() before committing
+        db.session.flush()
+        goal.recalculate()
         db.session.commit()
 
         if goal.is_complete:
             flash(f'{goal.name} is fully funded.', 'success')
         else:
             flash(f'Added to {goal.name}.', 'success')
+        return redirect(url_for('goals'))
+
+    @app.route('/goals/<int:goal_id>/contribution/<int:contribution_id>/delete',
+               methods=['POST'])
+    @login_required
+    def delete_contribution(goal_id, contribution_id):
+        goal = owned_goal_or_none(goal_id)
+        if goal is None:
+            flash('That goal no longer exists.', 'error')
+            return redirect(url_for('goals'))
+
+        #Matched on goal AND owner, so a contribution id from another
+        #account cannot be removed by guessing the number.
+        entry = GoalContribution.query.filter_by(
+            id=contribution_id, goal_id=goal.id, user_id=current_user.id
+        ).first()
+
+        if entry is None:
+            flash('That entry no longer exists.', 'error')
+        else:
+            db.session.delete(entry)
+            db.session.flush()
+            goal.recalculate()
+            db.session.commit()
+            flash('Entry removed.', 'success')
+
         return redirect(url_for('goals'))
 
     @app.route('/goals/<int:goal_id>/delete', methods=['POST'])

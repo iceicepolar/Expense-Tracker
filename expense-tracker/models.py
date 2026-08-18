@@ -130,12 +130,23 @@ class Goal(db.Model):
 
     target_amount = db.Column(db.Float, nullable=False)
 
+    #A cache of sum(contributions), never edited directly. It exists so the
+    #goals list does not have to sum a relationship per card, and it cannot
+    #drift because recalculate() is the only thing that writes it.
     saved_amount = db.Column(db.Float, nullable=False, default=0.0)
 
     #Optional. When set, the goal can say what you need to put aside monthly.
     target_date = db.Column(db.Date, nullable=True)
 
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    contributions = db.relationship(
+        "GoalContribution",
+        backref="goal",
+        lazy=True,
+        cascade="all, delete-orphan",
+        order_by="GoalContribution.occurred_on.desc(), GoalContribution.id.desc()",
+    )
 
     @property
     def remaining(self):
@@ -180,5 +191,48 @@ class Goal(db.Model):
             return None
         return self.remaining / months
 
+    def recalculate(self):
+        """Re-derive saved_amount from the contributions that back it."""
+        self.saved_amount = round(
+            sum(c.amount for c in self.contributions), 2
+        )
+        return self.saved_amount
+
     def __repr__(self):
         return f"<Goal {self.name}>"
+
+
+class GoalContribution(db.Model):
+    """
+    One payment towards a goal.
+
+    Deliberately NOT an Expense. Money moved into savings is not spending,
+    and recording it as one wrecked the dashboard - a 100,000 transfer showed
+    up as 100,000 "Spent" and dragged Net Balance far below zero. Goals keep
+    their own ledger; the overview stays about day-to-day money.
+    """
+
+    __tablename__ = "goal_contributions"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    goal_id = db.Column(
+        db.Integer, db.ForeignKey("goals.id"), nullable=False, index=True
+    )
+
+    #Denormalised so a contribution can be scoped by owner without joining
+    #through its goal on every query.
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
+
+    amount = db.Column(db.Float, nullable=False)
+
+    occurred_on = db.Column(db.Date, nullable=False, default=date.today)
+
+    note = db.Column(db.String(150), nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    def __repr__(self):
+        return f"<GoalContribution {self.amount}>"

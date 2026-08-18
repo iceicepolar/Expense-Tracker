@@ -4,11 +4,11 @@
 
 {% block content %}
 
-<h1 class="auth-title">Create your account</h1>
-<p class="auth-sub">Your own private books. Nobody else can see or edit them.</p>
+<h1 class="mb-1.5 text-center text-[25px] font-bold">Create your account</h1>
+<p class="mb-6 text-center text-sm leading-relaxed text-ink-muted">Your own private books. Nobody else can see or edit them.</p>
 
 <form method="post" action="{{ url_for('auth.register') }}"
-      class="form-card form-card--flush" novalidate>
+      class="m-0 max-w-none border-0 bg-transparent p-0" novalidate>
 
   <div class="form-row">
     <label for="email">Email</label>
@@ -33,7 +33,7 @@
     {% if errors.password %}
       <small class="error">{{ errors.password }}</small>
     {% else %}
-      <small class="hint">At least 8 characters.</small>
+      <small class="text-xs text-ink-dim">At least 8 characters.</small>
     {% endif %}
   </div>
 
@@ -47,16 +47,16 @@
     {% if errors.confirm %}<small class="error">{{ errors.confirm }}</small>{% endif %}
   </div>
 
-  <button type="submit" class="primary-btn primary-btn--block">
+  <button type="submit" class="primary-btn w-full py-3.5">
     <i class="fa-solid fa-user-plus"></i>
     Create account
   </button>
 
 </form>
 
-<p class="auth-switch">
+<p class="mt-[22px] text-center text-sm text-ink-muted">
   Already have an account?
-  <a href="{{ url_for('auth.login') }}">Sign in</a>
+  <a class="font-semibold text-gold hover:underline" href="{{ url_for('auth.login') }}">Sign in</a>
 </p>
 
 {% endblock %}

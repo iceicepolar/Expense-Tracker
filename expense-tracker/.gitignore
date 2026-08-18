@@ -16,3 +16,8 @@ env/
 
 # Vercel
 .vercel/
+
+# npm is build tooling for Tailwind only - the Flask app runs without it.
+# The BUILT css (public/static/css/tailwind.css) is committed on purpose so
+# Vercel still deploys with no build step.
+node_modules/

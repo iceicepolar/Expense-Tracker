@@ -1,0 +1,45 @@
+/* ===========================================================
+   Tailwind source. Build with:  npm run css
+   The generated file is public/static/css/tailwind.css and IS
+   committed, so Vercel still deploys with no build step.
+
+   Preflight is deliberately left out. It resets every element on
+   the page, which would wreck the 16 templates still using
+   style.css while the conversion is only part-done. Import it
+   later, once nothing depends on the old stylesheet.
+   =========================================================== */
+
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Scan the Jinja templates for class names */
+@source "../../../templates";
+
+/* The existing palette, so utilities match the app instead of
+   introducing a second set of colours alongside it. */
+@theme {
+  --color-bg: #09090f;
+  --color-surface: #141422;
+  --color-surface-2: #1a1a29;
+  --color-field: #202034;
+  --color-line: #232336;
+  --color-line-soft: #26263a;
+
+  --color-ink: #ffffff;
+  --color-ink-muted: #8b8ea6;
+  --color-ink-dim: #6b6e85;
+
+  --color-gold: #d6a33d;
+  --color-gold-soft: #4a3913;
+  --color-danger: #ff6b7d;
+  --color-danger-soft: #49232d;
+  --color-money: #3ddc97;
+  --color-money-soft: #123d34;
+
+  --font-sans: "Inter", sans-serif;
+
+  --radius-card: 20px;
+  --radius-field: 12px;
+}

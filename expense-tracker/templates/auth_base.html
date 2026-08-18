@@ -26,26 +26,32 @@
     <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 
+    {# Tailwind only on this page - the sign-in screens are converted.
+       The old stylesheet is still loaded because .form-row, .error and
+       .primary-btn come from it and are shared with the rest of the app. #}
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='css/style.css') }}">
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='css/mobile.css') }}">
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/tailwind.css') }}">
 
 </head>
 
-<body class="auth-body">
+<body class="grid min-h-screen place-items-center bg-bg text-ink">
 
-<main class="auth-shell">
+<main class="flex w-full max-w-[440px] flex-col gap-[18px] px-5 py-8">
 
-    <div class="auth-card">
+    <div class="rounded-[20px] border border-line bg-surface p-8 shadow-[0_24px_60px_rgba(0,0,0,.45)]">
 
-        <div class="auth-logo">
-            <i class="fa-solid fa-wallet"></i>
+        <div class="mb-[26px] flex items-center justify-center gap-3">
+            <i class="fa-solid fa-wallet text-[26px] text-gold"></i>
             <div>
-                <h2>BudgetWise</h2>
-                <p>Personal Finance</p>
+                <h2 class="text-[19px] font-bold leading-tight text-gold">BudgetWise</h2>
+                <p class="text-xs text-ink-dim">Personal Finance</p>
             </div>
         </div>
 
@@ -66,7 +72,7 @@
 
     </div>
 
-    <p class="auth-footnote">
+    <p class="flex items-center justify-center gap-2 text-xs text-ink-dim">
         <i class="fa-solid fa-lock"></i>
         Your transactions are visible only to your account.
     </p>

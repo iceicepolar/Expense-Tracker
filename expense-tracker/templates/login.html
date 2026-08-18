@@ -4,11 +4,11 @@
 
 {% block content %}
 
-<h1 class="auth-title">Welcome back</h1>
-<p class="auth-sub">Sign in to reach your transactions from any device.</p>
+<h1 class="mb-1.5 text-center text-[25px] font-bold">Welcome back</h1>
+<p class="mb-6 text-center text-sm leading-relaxed text-ink-muted">Sign in to reach your transactions from any device.</p>
 
 <form method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}"
-      class="form-card form-card--flush" novalidate>
+      class="m-0 max-w-none border-0 bg-transparent p-0" novalidate>
 
   <div class="form-row">
     <label for="email">Email</label>
@@ -32,16 +32,16 @@
     {% if errors.password %}<small class="error">{{ errors.password }}</small>{% endif %}
   </div>
 
-  <button type="submit" class="primary-btn primary-btn--block">
+  <button type="submit" class="primary-btn w-full py-3.5">
     <i class="fa-solid fa-right-to-bracket"></i>
     Sign in
   </button>
 
 </form>
 
-<p class="auth-switch">
+<p class="mt-[22px] text-center text-sm text-ink-muted">
   No account yet?
-  <a href="{{ url_for('auth.register') }}">Create one</a>
+  <a class="font-semibold text-gold hover:underline" href="{{ url_for('auth.register') }}">Create one</a>
 </p>
 
 {% endblock %}

@@ -123,6 +123,27 @@
 
         </nav>
 
+        {% if current_user.is_authenticated %}
+            <div class="account">
+
+                <span class="account__avatar" aria-hidden="true">
+                    {{ current_user.email[0] }}
+                </span>
+
+                <span class="account__email" title="{{ current_user.email }}">
+                    {{ current_user.email }}
+                </span>
+
+                {# POST, so no other site can sign you out by embedding a link #}
+                <form method="post" action="{{ url_for('auth.logout') }}">
+                    <button type="submit" class="account__logout" aria-label="Sign out">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </form>
+
+            </div>
+        {% endif %}
+
     </aside>
 
     <!-- Main Content -->

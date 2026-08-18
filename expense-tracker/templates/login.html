@@ -1,0 +1,47 @@
+{% extends "auth_base.html" %}
+
+{% block title %}Sign in{% endblock %}
+
+{% block content %}
+
+<h1 class="auth-title">Welcome back</h1>
+<p class="auth-sub">Sign in to reach your transactions from any device.</p>
+
+<form method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}"
+      class="form-card form-card--flush" novalidate>
+
+  <div class="form-row">
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email"
+           value="{{ data.email or '' }}"
+           autocomplete="username"
+           inputmode="email"
+           placeholder="you@example.com"
+           {% if errors.email %}aria-invalid="true"{% endif %}
+           autofocus required>
+    {% if errors.email %}<small class="error">{{ errors.email }}</small>{% endif %}
+  </div>
+
+  <div class="form-row">
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password"
+           autocomplete="current-password"
+           placeholder="Your password"
+           {% if errors.password %}aria-invalid="true"{% endif %}
+           required>
+    {% if errors.password %}<small class="error">{{ errors.password }}</small>{% endif %}
+  </div>
+
+  <button type="submit" class="primary-btn primary-btn--block">
+    <i class="fa-solid fa-right-to-bracket"></i>
+    Sign in
+  </button>
+
+</form>
+
+<p class="auth-switch">
+  No account yet?
+  <a href="{{ url_for('auth.register') }}">Create one</a>
+</p>
+
+{% endblock %}

@@ -115,6 +115,9 @@ a {
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  /* Column layout so the account block can sit against the bottom edge */
+  display: flex;
+  flex-direction: column;
 }
 
 .logo {
@@ -328,6 +331,8 @@ input[type="text"],
 input[type="search"],
 input[type="number"],
 input[type="date"],
+input[type="email"],
+input[type="password"],
 select {
   background: var(--field);
   border: 1px solid transparent;
@@ -792,4 +797,175 @@ body.is-offline .icon-btn--danger {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* ===========================================================
+   Sign in / register
+
+   These pages deliberately skip the sidebar and the app shell:
+   there is nothing to navigate to until you are signed in.
+   =========================================================== */
+
+.auth-body {
+  /* Grid rather than flex: place-items centres on both axes in one line,
+     and the row still grows past the viewport on short screens instead of
+     clipping the top of the card. */
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.auth-shell {
+  padding: 32px 20px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 36px 32px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+  /* Centred over the card, matching the heading beneath it */
+  justify-content: center;
+}
+
+.auth-title,
+.auth-sub {
+  text-align: center;
+}
+
+.auth-logo i {
+  color: var(--gold);
+  font-size: 26px;
+}
+
+.auth-logo h2 {
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.auth-logo p {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.auth-title {
+  font-size: 25px;
+  margin-bottom: 6px;
+}
+
+.auth-sub {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+/* The card already provides the frame, so the form inside drops its own. */
+.form-card--flush {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  max-width: none;
+}
+
+.primary-btn--block {
+  width: 100%;
+  padding: 14px 22px;
+}
+
+.hint {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.auth-switch {
+  margin-top: 22px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.auth-switch a {
+  color: var(--gold);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+.auth-footnote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+/* -- signed-in account block in the sidebar ------------------------------ */
+
+.account {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.account__avatar {
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--gold-soft);
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.account__email {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account__logout {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  transition: color .15s ease, background .15s ease;
+}
+
+.account__logout:hover {
+  color: var(--red);
+  background: var(--red-soft);
 }

@@ -10,7 +10,9 @@
    unreachable" page never gets stored and replayed later.
    =========================================================== */
 
-const VERSION = "ledger-v1";
+// Bump this on every deploy that changes cached assets - activate() deletes
+// every cache whose name does not start with the current VERSION.
+const VERSION = "ledger-v3";
 const SHELL = `${VERSION}-shell`;
 const PAGES = `${VERSION}-pages`;
 
@@ -18,10 +20,20 @@ const SHELL_ASSETS = [
   "/static/css/style.css",
   "/static/css/mobile.css",
   "/static/js/app.js",
+  "/static/js/auth.js",
   "/static/js/charts.js",
   "/icons/icon-192.png",
   "/offline",
 ];
+
+// The sign-in page asks for this as soon as it loads. Cached pages belong to
+// whoever was signed in when they were stored, so they must not survive a
+// sign-out and reappear for the next person to use this device.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "PURGE_PAGES") {
+    event.waitUntil(caches.delete(PAGES));
+  }
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -91,7 +103,29 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: cache first, refresh in the background
+  // Stylesheets and scripts: network first, cache only as an offline fallback.
+  //
+  // These were cache-first, which meant an edited stylesheet kept losing to
+  // the copy already in the cache - the page would render with whatever CSS
+  // was current the first time the worker saw it, and new rules simply never
+  // arrived. Serving them fresh costs a few KB and removes a whole class of
+  // "my change did not show up" confusion.
+  if (/\.(css|js)$/.test(url.pathname)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(SHELL).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Everything else (icons, images): cache first, refresh in the background
   event.respondWith(
     caches.match(request).then((cached) => {
       const network = fetch(request)

@@ -13,8 +13,12 @@ from flask import (
     url_for,
 )
 
+from flask_login import current_user, login_required
+
+from auth import auth as auth_blueprint, login_manager
 from config import CATEGORIES, CATEGORY_COLORS, TRANSACTION_TYPES, Config
 from models import Expense, db
+from schema import ensure_user_column
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -142,11 +146,53 @@ def create_app():
         if app.config["DB_ERROR"] is None:
             try:
                 db.create_all()
+                #create_all() never alters a table that already exists, so the
+                #new ownership column has to be added separately on databases
+                #that predate accounts.
+                ensure_user_column(db.engine, app.logger)
             except Exception as exc:
                 app.logger.exception("Database initialisation failed")
                 app.config["DB_ERROR"] = (
                     f"Could not reach the database ({type(exc).__name__}): {exc}"
                 )
+
+    #Refuse to serve rather than sign login cookies with the key that is
+    #published in this repository - it would let anyone forge a session.
+    if app.config["SECRET_KEY_MISSING"] and not app.config["DB_ERROR"]:
+        app.config["DB_ERROR"] = (
+            "No SECRET_KEY is set. It signs the login cookie, so without a "
+            "private one anybody could forge a session and read every "
+            "account. Generate one with "
+            "`python -c \"import secrets; print(secrets.token_hex(32))\"` "
+            "and add it to your environment variables."
+        )
+
+    #Turns the signed cookie back into `current_user` on every request.
+    login_manager.init_app(app)
+    app.register_blueprint(auth_blueprint)
+
+    # -- ownership ----------------------------------------------------------
+
+    def owned():
+        """
+        Every transaction query starts here.
+
+        Scoping at a single choke point is the whole defence: a query that
+        forgets `.filter_by(user_id=...)` silently returns other people's
+        money, and that mistake is invisible in testing when you only have
+        one account.
+        """
+        return Expense.query.filter_by(user_id=current_user.id)
+
+    def owned_or_none(expense_id):
+        """
+        Fetch one row *by id and owner together*.
+
+        Looking it up by id alone and checking ownership afterwards is the
+        classic hole - /edit/5 would happily load somebody else's row for
+        anyone who guessed the number.
+        """
+        return owned().filter_by(id=expense_id).first()
 
     # -- template helpers ---------------------------------------------------
 
@@ -166,11 +212,14 @@ def create_app():
     # -- routes -------------------------------------------------------------
 
     @app.route('/')
+    @login_required
     def dashboard():
         #Every month that already has data, newest first
         recorded = [
             month_key(row[0])
-            for row in db.session.query(Expense.transaction_date).distinct()
+            for row in db.session.query(Expense.transaction_date)
+            .filter(Expense.user_id == current_user.id)
+            .distinct()
         ]
         current = month_key(date.today())
         months = sorted({*recorded, current}, reverse=True)
@@ -183,7 +232,7 @@ def create_app():
         category = request.args.get("category", "")
         tx_type = request.args.get("type", "")
 
-        query = Expense.query
+        query = owned()
 
         if selected != "all":
             start, end = month_bounds(selected)
@@ -226,7 +275,7 @@ def create_app():
         start, _ = month_bounds(window[0])
         _, end = month_bounds(window[-1])
 
-        rows = Expense.query.filter(
+        rows = owned().filter(
             Expense.transaction_date.between(start, end)
         ).all()
 
@@ -239,10 +288,10 @@ def create_app():
 
         #Category slices use the selected period only
         if selected == "all":
-            scoped = Expense.query.all()
+            scoped = owned().all()
         else:
             s, e = month_bounds(selected)
-            scoped = Expense.query.filter(
+            scoped = owned().filter(
                 Expense.transaction_date.between(s, e)
             ).all()
 
@@ -270,6 +319,7 @@ def create_app():
         }
 
     @app.route('/add', methods=['GET', 'POST'])
+    @login_required
     def add_expense():
         if request.method == 'POST':
             data, errors = parse_form(request.form)
@@ -282,6 +332,7 @@ def create_app():
 
             db.session.add(
                 Expense(
+                    user_id=current_user.id,
                     description=data["description"],
                     category=data["category"],
                     amount=data["amount_value"],
@@ -302,8 +353,11 @@ def create_app():
         )
 
     @app.route('/edit/<int:expense_id>', methods=['GET', 'POST'])
+    @login_required
     def edit_expense(expense_id):
-        expense = db.session.get(Expense, expense_id)
+        #Somebody else's id lands here as "no longer exists" rather than a
+        #"not yours" message, which would confirm the row is real.
+        expense = owned_or_none(expense_id)
         if expense is None:
             flash('That transaction no longer exists.', 'error')
             return redirect(url_for('dashboard'))
@@ -344,8 +398,9 @@ def create_app():
         )
 
     @app.route('/delete/<int:expense_id>', methods=['POST'])
+    @login_required
     def delete_expense(expense_id):
-        expense = db.session.get(Expense, expense_id)
+        expense = owned_or_none(expense_id)
         if expense is None:
             flash('That transaction no longer exists.', 'error')
         else:
@@ -355,8 +410,9 @@ def create_app():
         return redirect(request.referrer or url_for('dashboard'))
 
     @app.route('/api/transactions')
+    @login_required
     def api_transactions():
-        rows = Expense.query.order_by(Expense.transaction_date.desc()).all()
+        rows = owned().order_by(Expense.transaction_date.desc()).all()
         return jsonify([row.to_dict() for row in rows])
 
     #Routes that must keep working even when the database is unreachable,

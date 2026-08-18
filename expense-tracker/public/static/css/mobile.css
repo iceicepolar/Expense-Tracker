@@ -27,10 +27,17 @@
 
   .logo div,
   .add-btn span,
+  .account__email,
   nav a span,
   .nav-soon span,
   .nav-soon em {
     display: none;
+  }
+
+  /* Icon rail: just the avatar over the sign-out button */
+  .account {
+    flex-direction: column;
+    gap: 8px;
   }
 
   .add-btn,
@@ -116,10 +123,16 @@
 
   .logo div,
   .add-btn span,
+  .account__email,
   nav a span,
   .nav-soon span,
   .nav-soon em {
     display: block;
+  }
+
+  .account {
+    flex-direction: row;
+    gap: 10px;
   }
 
   .nav-soon em {

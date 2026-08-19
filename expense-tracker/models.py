@@ -79,6 +79,12 @@ class Expense(db.Model):
 
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
 
+    #Set by the phone for anything queued offline, so a sync that runs twice
+    #(retry, flaky signal, app reopened mid-flush) recognises the row it
+    #already created instead of adding a second copy. Null for anything typed
+    #straight into the website.
+    client_id = db.Column(db.String(64), nullable=True, index=True)
+
     #Optional free-text note. nullable=True because every transaction
     #already in the database predates this column and has none.
     notes = db.Column(db.String(300), nullable=True)
@@ -101,6 +107,7 @@ class Expense(db.Model):
             "transaction_type": self.transaction_type,
             "transaction_date": self.transaction_date.isoformat(),
             "notes": self.notes,
+            "client_id": self.client_id,
         }
 
     def __repr__(self):

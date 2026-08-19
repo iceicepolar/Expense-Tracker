@@ -12,7 +12,7 @@
 
 // Bump this on every deploy that changes cached assets - activate() deletes
 // every cache whose name does not start with the current VERSION.
-const VERSION = "ledger-v3";
+const VERSION = "ledger-v4";
 const SHELL = `${VERSION}-shell`;
 const PAGES = `${VERSION}-pages`;
 
@@ -21,6 +21,7 @@ const SHELL_ASSETS = [
   "/static/css/mobile.css",
   "/static/js/app.js",
   "/static/js/auth.js",
+  "/static/js/offline.js",
   "/static/js/charts.js",
   "/icons/icon-192.png",
   "/offline",
@@ -63,6 +64,24 @@ self.addEventListener("activate", (event) => {
         )
       )
       .then(() => self.clients.claim())
+  );
+});
+
+// Background Sync: the browser fires this when connectivity returns, even
+// if no page is open. Not available on iOS Safari, where offline.js falls
+// back to flushing on the online event and on page load instead.
+self.addEventListener("sync", (event) => {
+  if (event.tag !== "flush-outbox") return;
+  event.waitUntil(
+    self.clients.matchAll({ includeUncontrolled: true }).then((clients) => {
+      if (clients.length) {
+        // A page is open - it owns the IndexedDB logic, so ask it to upload
+        clients.forEach((c) => c.postMessage({ type: "FLUSH_OUTBOX" }));
+        return;
+      }
+      // No page open. Opening one lets offline.js run and flush the queue.
+      return self.clients.openWindow("/");
+    })
   );
 });
 

@@ -1397,3 +1397,91 @@ body.is-offline .icon-btn--danger {
   padding-top: 14px;
   border-top: 1px solid var(--line-soft);
 }
+
+/* ===========================================================
+   Pending queue — transactions captured offline
+
+   Shown above the page content rather than inside the transaction
+   table: the totals are calculated by the server and exclude
+   anything unsynced, so a pending row sitting in the table would
+   contradict the figures directly above it.
+   =========================================================== */
+
+.pending {
+  background: var(--gold-soft);
+  border: 1px solid #6b5320;
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  margin-bottom: 25px;
+}
+
+.pending[hidden] {
+  display: none;
+}
+
+.pending__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f0d199;
+  margin-bottom: 12px;
+}
+
+.pending ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pending li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas:
+    "desc amount remove"
+    "meta amount remove";
+  align-items: center;
+  gap: 2px 12px;
+  background: rgba(0, 0, 0, .25);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.pending__desc {
+  grid-area: desc;
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.pending__meta {
+  grid-area: meta;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.pending__amount {
+  grid-area: amount;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pending__remove {
+  grid-area: remove;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.pending__remove:hover {
+  color: var(--red);
+  background: var(--red-soft);
+}

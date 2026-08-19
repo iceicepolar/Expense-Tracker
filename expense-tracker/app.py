@@ -15,6 +15,7 @@ from flask import (
 )
 
 from flask_login import current_user, login_required
+from sqlalchemy.exc import IntegrityError
 
 from auth import auth as auth_blueprint, login_manager
 from config import CATEGORIES, CATEGORY_COLORS, TRANSACTION_TYPES, Config
@@ -806,11 +807,67 @@ def create_app():
             flash('Transaction deleted.', 'success')
         return redirect(request.referrer or url_for('dashboard'))
 
-    @app.route('/api/transactions')
+    @app.route('/api/transactions', methods=['GET', 'POST'])
     @login_required
     def api_transactions():
-        rows = owned().order_by(Expense.transaction_date.desc()).all()
-        return jsonify([row.to_dict() for row in rows])
+        """
+        GET  - this account's transactions.
+        POST - accept one transaction that was queued on a phone offline.
+
+        The POST half is what makes offline capture safe. Each queued
+        transaction carries a client_id generated on the device, and a
+        client_id this account has already used returns the existing row
+        instead of inserting a second one. Without that, any retry - flaky
+        signal, the app reopened mid-flush, a background sync firing twice -
+        would silently duplicate somebody's spending.
+        """
+        if request.method == 'GET':
+            rows = owned().order_by(Expense.transaction_date.desc()).all()
+            return jsonify([row.to_dict() for row in rows])
+
+        payload = request.get_json(silent=True) or {}
+
+        client_id = (payload.get("client_id") or "").strip()
+        if not client_id or len(client_id) > 64:
+            return jsonify({"error": "A client_id is required."}), 400
+
+        existing = owned().filter_by(client_id=client_id).first()
+        if existing is not None:
+            #Already stored on an earlier attempt. Report success so the
+            #phone clears it from its queue.
+            return jsonify({"status": "duplicate", "transaction": existing.to_dict()}), 200
+
+        #Reuse the website's validation so a queued transaction cannot slip
+        #past rules the form enforces.
+        data, errors = parse_form(payload)
+        if errors:
+            #422 rather than 400: the request was well formed, the contents
+            #were not. The phone drops it instead of retrying forever.
+            return jsonify({"status": "rejected", "errors": errors}), 422
+
+        row = Expense(
+            user_id=current_user.id,
+            client_id=client_id,
+            description=data["description"],
+            category=data["category"],
+            amount=data["amount_value"],
+            transaction_type=data["transaction_type"],
+            transaction_date=data["date_value"],
+            notes=(payload.get("notes") or None),
+        )
+        db.session.add(row)
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            #Two flushes raced and the other won. Same outcome as above.
+            db.session.rollback()
+            again = owned().filter_by(client_id=client_id).first()
+            if again is not None:
+                return jsonify({"status": "duplicate", "transaction": again.to_dict()}), 200
+            raise
+
+        return jsonify({"status": "created", "transaction": row.to_dict()}), 201
 
     #Routes that must keep working even when the database is unreachable,
     #otherwise the installed app cannot boot or show its offline page.

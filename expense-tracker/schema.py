@@ -34,6 +34,14 @@ REQUIRED_COLUMNS = [
         "column": "notes",
         "type_sql": "VARCHAR(300)",
     },
+    {
+        "table": "expenses",
+        "column": "client_id",
+        "type_sql": "VARCHAR(64)",
+        #Unique per owner, not globally: two accounts could in principle
+        #generate the same id, and one should not block the other.
+        "unique_index_with": "user_id",
+    },
 ]
 
 
@@ -70,6 +78,13 @@ def ensure_columns(engine, logger=None):
             statements.append(
                 f"CREATE INDEX IF NOT EXISTS ix_{table}_{column} "
                 f"ON {table} ({column})"
+            )
+
+        if spec.get("unique_index_with"):
+            other = spec["unique_index_with"]
+            statements.append(
+                f"CREATE UNIQUE INDEX IF NOT EXISTS "
+                f"uq_{table}_{other}_{column} ON {table} ({other}, {column})"
             )
 
         with engine.begin() as connection:

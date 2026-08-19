@@ -168,6 +168,12 @@
             {% endif %}
         {% endwith %}
 
+        {# Filled in by offline.js from the device's own queue. Kept out of
+           the transaction table on purpose: the totals above come from the
+           server and exclude anything unsynced, so a pending row inside the
+           table would contradict them. #}
+        <div class="pending" id="pendingQueue" hidden></div>
+
         {% block content %}
 
         {% endblock %}
@@ -183,6 +189,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/offline.js') }}"></script>
 {% block scripts %}{% endblock %}
 
 </body>

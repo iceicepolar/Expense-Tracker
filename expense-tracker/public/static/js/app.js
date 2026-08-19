@@ -117,9 +117,14 @@
   window.addEventListener("offline", render);
   render();
 
-  // Saving needs the server, so say so instead of failing silently
+  // Editing and deleting still need the server, so say so instead of
+  // failing silently. Adding is handled by offline.js, which queues it on
+  // the device - so the add form is deliberately skipped here.
   document.querySelectorAll("form").forEach(function (form) {
     if (form.method && form.method.toLowerCase() !== "post") return;
+
+    var action = form.getAttribute("action") || "";
+    if (action.indexOf("/add") !== -1) return;
 
     form.addEventListener(
       "submit",

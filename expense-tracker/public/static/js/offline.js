@@ -292,13 +292,27 @@
   // of being mixed into the table - a pending row sitting inside the table
   // would make the totals above it look wrong.
 
+  // ---- Keeping the add form reachable offline ---------------------------
+
+  function warmPages() {
+    // Ask the worker to cache the pages needed offline - above all /add.
+    // Without this, tapping "Add Transaction" with no signal finds nothing
+    // cached and never reaches the form, so there is nothing to queue.
+    if (!("serviceWorker" in navigator) || !navigator.onLine) return;
+    navigator.serviceWorker.ready.then(function (reg) {
+      if (reg.active) reg.active.postMessage({ type: "WARM_PAGES" });
+    }).catch(function () {});
+  }
+
   // ---- Wiring ------------------------------------------------------------
 
   captureAddForm();
   renderPending();
+  warmPages();
 
   window.addEventListener("online", function () {
     renderPending();
+    warmPages();
     flush().then(renderPending);
   });
 

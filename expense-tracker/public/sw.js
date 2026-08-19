@@ -12,7 +12,7 @@
 
 // Bump this on every deploy that changes cached assets - activate() deletes
 // every cache whose name does not start with the current VERSION.
-const VERSION = "ledger-v4";
+const VERSION = "ledger-v6";
 const SHELL = `${VERSION}-shell`;
 const PAGES = `${VERSION}-pages`;
 
@@ -26,6 +26,50 @@ const SHELL_ASSETS = [
   "/icons/icon-192.png",
   "/offline",
 ];
+
+// Pages worth having offline. /add is the important one: without it, tapping
+// "Add Transaction" with no signal finds nothing cached, falls back to the
+// dashboard, and the form is never reached - so there is nothing to queue.
+// They cannot go in SHELL_ASSETS because they need a signed-in session, which
+// does not exist yet when the worker installs. offline.js asks for them once
+// a real page has loaded.
+const WARM_PAGES = ["/add", "/", "/transactions?month=all", "/goals"];
+
+// Warm the cache from inside the worker.
+//
+// Relying on the page to ask was fragile: on the first load after an update
+// the page is still controlled by the OLD worker, so the request went to a
+// worker that had never heard of it and was silently dropped. Doing it here,
+// off the back of any successful navigation, needs no cooperation from the
+// page and no agreement about versions.
+let warmedAt = 0;
+
+function warmPages() {
+  const now = Date.now();
+  if (now - warmedAt < 60000) return Promise.resolve();   // at most once a minute
+  warmedAt = now;
+
+  return caches.open(PAGES).then((cache) =>
+    Promise.all(
+      WARM_PAGES.map((url) =>
+        fetch(url, { credentials: "same-origin" })
+          .then((response) => {
+            if (!response.ok) return;
+            // A redirect to /login means no session. Caching that would
+            // show a sign-in page offline for good.
+            if (response.redirected && response.url.indexOf("/login") !== -1) return;
+            return cache.put(url, response.clone());
+          })
+          .catch(() => {})
+      )
+    )
+  );
+}
+
+self.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "WARM_PAGES") return;
+  event.waitUntil(warmPages());
+});
 
 // The sign-in page asks for this as soon as it loads. Cached pages belong to
 // whoever was signed in when they were stored, so they must not survive a
@@ -107,6 +151,8 @@ self.addEventListener("fetch", (event) => {
           if (response.ok) {
             const copy = response.clone();
             caches.open(PAGES).then((cache) => cache.put(request, copy));
+            // Opening any page is enough to keep /add available offline
+            warmPages();
           }
           return response;
         })
